@@ -105,7 +105,7 @@ export default function CalendarPage() {
                         getDocs(collection(db, 'users', currentUser.uid, 'activities')),
                         getDocs(collection(db, 'users', currentUser.uid, 'essays')),
                         getDocs(collection(db, 'users', currentUser.uid, 'honors')),
-                        getDocs(collection(db, 'users', currentUser.uid, 'testScores')),
+                        getDocs(collection(db, 'users', currentUser.uid, 'tests')),
                         getDocs(collection(db, 'users', currentUser.uid, 'colleges'))
                     ]);
 
@@ -278,13 +278,13 @@ export default function CalendarPage() {
             <nav className={dashboardStyles.topNav}>
                 <div className={dashboardStyles.navContent}>
                     <img src="/assets/elongatedNeil.png" alt="AppApp" className={dashboardStyles.logoImage} />
-                    <div className={styles.topUserCard}>
-                        <div className={styles.topUserAvatar}>
+                    <div className={dashboardStyles.topUserCard} onClick={() => router.push('/profile')}>
+                        <div className={dashboardStyles.topUserAvatar}>
                             {userData?.firstName?.charAt(0)}{userData?.lastName?.charAt(0)}
                         </div>
                         <div className={styles.topUserDetails}>
-                            <div className={styles.topUserName}>{userData?.firstName} {userData?.lastName}</div>
-                            <div className={styles.topUserEmail}>{userData?.email}</div>
+                            <div className={dashboardStyles.topUserName}>{userData?.firstName} {userData?.lastName}</div>
+                            <div className={dashboardStyles.topUserEmail}>{userData?.email}</div>
                         </div>
                     </div>
                 </div>
