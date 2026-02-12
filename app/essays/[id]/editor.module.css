@@ -1,0 +1,615 @@
+.container {
+    min-height: 100vh;
+    background: #FAFAFA;
+    display: flex;
+    flex-direction: column;
+}
+
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-size: 18px;
+    color: #6B7280;
+}
+
+.header {
+    background: white;
+    border-bottom: 1px solid #E5E7EB;
+    padding: 16px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.logo {
+    height: 32px;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.backButton {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: none;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.backButton:hover {
+    background: #F9FAFB;
+    border-color: #D1D5DB;
+}
+
+.headerInfo {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.wordCount {
+    font-size: 14px;
+    font-weight: 500;
+    color: #6B7280;
+}
+
+.saveStatus {
+    font-size: 13px;
+    color: #9CA3AF;
+}
+
+/* Three-column layout */
+.editorLayout {
+    display: grid;
+    grid-template-columns: 250px 1fr 280px;
+    gap: 0;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Left Sidebar - Recent Essays */
+.leftSidebar {
+    background: white;
+    border-right: 1px solid #E5E7EB;
+    padding: 24px 16px;
+    overflow-y: auto;
+}
+
+.sidebarTitle {
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 16px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.essaysList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.essayItem {
+    padding: 12px;
+    background: #F9FAFB;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.essayItem:hover {
+    background: #F3F4F6;
+    border-color: #437E84;
+}
+
+.essayItemTitle {
+    font-size: 13px;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.essayItemStatus {
+    font-size: 11px;
+    color: #6B7280;
+}
+
+/* Main Editor Area */
+.mainEditor {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.titleSection {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 48px 32px 24px;
+    width: 100%;
+}
+
+.title {
+    font-size: 36px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+    font-family: 'DMSans', sans-serif;
+}
+
+.toolbar {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0 32px 16px;
+    width: 100%;
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.toolbar button {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    border: 1px solid #E5E7EB;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #374151;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.toolbar button:hover {
+    background: #F9FAFB;
+    border-color: #437E84;
+}
+
+.toolbar button.active {
+    background: #437E84;
+    border-color: #437E84;
+    color: white;
+}
+
+.toolbar button span {
+    font-size: 20px;
+}
+
+.divider {
+    width: 1px;
+    height: 24px;
+    background: #E5E7EB;
+    margin: 0 8px;
+}
+
+.editorContainer {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0 32px 64px;
+    width: 100%;
+    flex: 1;
+}
+
+/* Tiptap Editor Styles */
+.editor {
+    background: white;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 32px;
+    min-height: 600px;
+    font-size: 16px;
+    line-height: 1.8;
+    color: #1F2937;
+    font-family: 'DMSans', sans-serif;
+    outline: none;
+}
+
+.editor:focus {
+    border-color: #437E84;
+    box-shadow: 0 0 0 3px rgba(67, 126, 132, 0.1);
+}
+
+/* Editor content styles */
+.editor p {
+    margin: 0 0 16px 0;
+}
+
+.editor h1 {
+    font-size: 32px;
+    font-weight: 700;
+    margin: 32px 0 16px 0;
+    color: #111827;
+}
+
+.editor h2 {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 24px 0 12px 0;
+    color: #111827;
+}
+
+.editor h3 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 20px 0 10px 0;
+    color: #111827;
+}
+
+.editor ul,
+.editor ol {
+    padding-left: 24px;
+    margin: 0 0 16px 0;
+}
+
+.editor li {
+    margin-bottom: 8px;
+}
+
+.editor strong {
+    font-weight: 700;
+}
+
+.editor em {
+    font-style: italic;
+}
+
+.editor u {
+    text-decoration: underline;
+}
+
+.editor [style*="text-align: center"] {
+    text-align: center;
+}
+
+.editor [style*="text-align: right"] {
+    text-align: right;
+}
+
+.editor [style*="text-align: left"] {
+    text-align: left;
+}
+
+/* Placeholder */
+.editor p.is-editor-empty:first-child::before {
+    content: "Start writing your essay...";
+    color: #9CA3AF;
+    float: left;
+    height: 0;
+    pointer-events: none;
+}
+
+/* Right Sidebar - Metadata */
+.rightSidebar {
+    background: white;
+    border-left: 1px solid #E5E7EB;
+    padding: 24px 16px;
+    overflow-y: auto;
+}
+
+.metadataSection {
+    margin-bottom: 24px;
+}
+
+.metadataLabel {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.wordCountDisplay {
+    font-size: 24px;
+    font-weight: 700;
+    color: #437E84;
+    padding: 12px 16px;
+    background: #F0F9FA;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.statusSelect {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: 'DMSans', sans-serif;
+    cursor: pointer;
+    background: white;
+    transition: all 0.2s;
+}
+
+.statusSelect:hover {
+    border-color: #437E84;
+}
+
+.statusSelect:focus {
+    outline: none;
+    border-color: #437E84;
+    box-shadow: 0 0 0 3px rgba(67, 126, 132, 0.1);
+}
+
+.collegesList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.collegeItem {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: #F9FAFB;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.collegeItem:hover {
+    background: #F3F4F6;
+}
+
+.checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: #437E84;
+}
+
+.collegeName {
+    font-size: 13px;
+    color: #374151;
+    flex: 1;
+}
+
+.emptyMessage {
+    font-size: 13px;
+    color: #9CA3AF;
+    margin: 0;
+    padding: 16px 0;
+    text-align: center;
+}
+
+
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-size: 18px;
+    color: #6B7280;
+}
+
+.header {
+    background: white;
+    border-bottom: 1px solid #E5E7EB;
+    padding: 16px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.backButton {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: none;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.backButton:hover {
+    background: #F9FAFB;
+    border-color: #D1D5DB;
+}
+
+.headerInfo {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.wordCount {
+    font-size: 14px;
+    font-weight: 500;
+    color: #6B7280;
+}
+
+.saveStatus {
+    font-size: 13px;
+    color: #9CA3AF;
+}
+
+.titleSection {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 48px 32px 24px;
+    width: 100%;
+}
+
+.title {
+    font-size: 36px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+    font-family: 'DMSans', sans-serif;
+}
+
+.toolbar {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0 32px 16px;
+    width: 100%;
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.toolbar button {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    border: 1px solid #E5E7EB;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #374151;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.toolbar button:hover {
+    background: #F9FAFB;
+    border-color: #437E84;
+}
+
+.toolbar button.active {
+    background: #437E84;
+    border-color: #437E84;
+    color: white;
+}
+
+.toolbar button span {
+    font-size: 20px;
+}
+
+.divider {
+    width: 1px;
+    height: 24px;
+    background: #E5E7EB;
+    margin: 0 8px;
+}
+
+.editorContainer {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0 32px 64px;
+    width: 100%;
+    flex: 1;
+}
+
+/* Tiptap Editor Styles */
+.editor {
+    background: white;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 32px;
+    min-height: 600px;
+    font-size: 16px;
+    line-height: 1.8;
+    color: #1F2937;
+    font-family: 'DMSans', sans-serif;
+    outline: none;
+}
+
+.editor:focus {
+    border-color: #437E84;
+    box-shadow: 0 0 0 3px rgba(67, 126, 132, 0.1);
+}
+
+/* Editor content styles */
+.editor p {
+    margin: 0 0 16px 0;
+}
+
+.editor h1 {
+    font-size: 32px;
+    font-weight: 700;
+    margin: 32px 0 16px 0;
+    color: #111827;
+}
+
+.editor h2 {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 24px 0 12px 0;
+    color: #111827;
+}
+
+.editor h3 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 20px 0 10px 0;
+    color: #111827;
+}
+
+.editor ul,
+.editor ol {
+    padding-left: 24px;
+    margin: 0 0 16px 0;
+}
+
+.editor li {
+    margin-bottom: 8px;
+}
+
+.editor strong {
+    font-weight: 700;
+}
+
+.editor em {
+    font-style: italic;
+}
+
+.editor u {
+    text-decoration: underline;
+}
+
+.editor [style*="text-align: center"] {
+    text-align: center;
+}
+
+.editor [style*="text-align: right"] {
+    text-align: right;
+}
+
+.editor [style*="text-align: left"] {
+    text-align: left;
+}
+
+/* Placeholder */
+.editor p.is-editor-empty:first-child::before {
+    content: "Start writing your essay...";
+    color: #9CA3AF;
+    float: left;
+    height: 0;
+    pointer-events: none;
+}

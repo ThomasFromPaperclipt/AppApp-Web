@@ -1,0 +1,349 @@
+.container {
+    min-height: 100vh;
+    min-height: 100dvh;
+    /* Mobile viewport fix */
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    background-color: #535F4B;
+    /* Dark Olive Green */
+    position: relative;
+    overflow-x: hidden;
+    font-family: 'DMSans', sans-serif;
+    margin: 0;
+    color: #ffffff;
+}
+
+/* Animated Background Mesh */
+.container::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at 50% 50%, rgba(67, 126, 132, 0.08) 0%, transparent 50%);
+    animation: rotateBackground 20s linear infinite;
+    pointer-events: none;
+    z-index: 0;
+}
+
+@keyframes rotateBackground {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.content {
+    max-width: 420px;
+    /* Mobile-focused width */
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+/* Header */
+.header {
+    text-align: center;
+    opacity: 0;
+    transform: translateY(-20px);
+    transition: all 0.6s ease-out;
+}
+
+.header.fadeIn {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.headerLogo {
+    height: 60px;
+    width: auto;
+    object-fit: contain;
+    margin-bottom: 0.5rem;
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+}
+
+.subtitle {
+    font-size: 1rem;
+    color: #E2E8F0;
+    margin: 0;
+    font-weight: 500;
+}
+
+/* Bento Grid */
+.bentoGrid {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Widget Base Styles */
+.widget {
+    background: white;
+    border-radius: 24px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    text-decoration: none;
+    color: inherit;
+    opacity: 0;
+    transform: translateY(20px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    position: relative;
+    overflow: hidden;
+}
+
+.widget.slideUp {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.widget:hover {
+    transform: translateY(-4px) scale(1.01);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+    z-index: 2;
+}
+
+/* Preview Widget */
+.previewWidget {
+    background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%);
+    padding: 0;
+    /* Custom padding layout */
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.previewContent {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    padding: 1.5rem;
+    gap: 1rem;
+    align-items: center;
+}
+
+.previewText {
+    flex: 1;
+    z-index: 2;
+}
+
+.previewText h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #2d3748;
+    margin: 0 0 0.5rem;
+    line-height: 1.2;
+}
+
+.previewText p {
+    font-size: 0.9rem;
+    color: #718096;
+    margin: 0;
+}
+
+.phoneContainer {
+    width: 100px;
+    height: 180px;
+    position: relative;
+    transform: rotate(10deg) translateY(20px);
+    transition: transform 0.4s ease;
+}
+
+.widget:hover .phoneContainer {
+    transform: rotate(0deg) translateY(10px);
+}
+
+.phoneImage {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.15));
+}
+
+/* Primary Widget (App Store) */
+.primaryWidget {
+    background: linear-gradient(135deg, #437E84 0%, #386a70 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+}
+
+.primaryWidget:hover {
+    box-shadow: 0 12px 30px rgba(67, 126, 132, 0.3);
+}
+
+.widgetIcon {
+    background: rgba(255, 255, 255, 0.2);
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+}
+
+.button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 1rem;
+    background: #E8EBE6;
+    /* Light grey/beige */
+    border: none;
+    border-radius: 50px;
+    /* Pill shape */
+    color: #2d3748;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 1.1rem;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.button:hover {
+    transform: scale(1.02);
+    background: #ffffff;
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+}
+
+.buttonPrimary {
+    background: #E8EBE6;
+    color: #2d3748;
+    border: none;
+}
+
+.buttonPrimary:hover {
+    background: #ffffff;
+    transform: scale(1.02);
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+}
+
+.widgetIcon span {
+    font-size: 24px;
+}
+
+.widgetText {
+    flex: 1;
+}
+
+.widgetText h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.widgetText p {
+    font-size: 0.85rem;
+    opacity: 0.9;
+    margin: 2px 0 0;
+}
+
+.arrowIcon {
+    opacity: 0.8;
+    transition: transform 0.3s ease;
+}
+
+.primaryWidget:hover .arrowIcon {
+    transform: translateX(4px);
+    opacity: 1;
+}
+
+/* Secondary Row */
+.secondaryRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.secondaryWidget {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 0.75rem;
+    aspect-ratio: 1;
+    padding: 1rem;
+}
+
+.widgetIconSmall {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s ease;
+}
+
+.instaWidget .widgetIconSmall {
+    background: rgba(225, 48, 108, 0.1);
+    color: #E1306C;
+}
+
+.androidWidget .widgetIconSmall {
+    background: rgba(61, 220, 132, 0.1);
+    color: #3DDC84;
+}
+
+.secondaryWidget h3 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #4a5568;
+    margin: 0;
+}
+
+.secondaryWidget:hover .widgetIconSmall {
+    transform: scale(1.1);
+}
+
+/* Tertiary Widget (Website) */
+.tertiaryWidget {
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(10px);
+    padding: 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.widgetContentHorizontal {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #718096;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.tertiaryWidget:hover {
+    background: white;
+    color: #437E84;
+}
+
+.tertiaryWidget:hover .widgetContentHorizontal {
+    color: #437E84;
+}
+
+/* Responsive Adjustments */
+@media (min-width: 600px) {
+    .content {
+        max-width: 480px;
+    }
+
+    .title {
+        font-size: 3.5rem;
+    }
+}

@@ -1,0 +1,205 @@
+.profileCard {
+    background: white;
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    margin-bottom: 2rem;
+    border: 1px solid #edf2f7;
+}
+
+.profileCardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #edf2f7;
+}
+
+.profileCardTitle {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #2d3748;
+    margin: 0;
+}
+
+.editButton {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: #E9F5F7;
+    color: #437E84;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.editButton:hover {
+    background: #437E84;
+    color: white;
+}
+
+.profileInfoGrid {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.profileInfoRow {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    align-items: center;
+    gap: 1rem;
+}
+
+.profileLabel {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #718096;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.profileValue {
+    font-size: 1rem;
+    color: #2d3748;
+    font-weight: 500;
+}
+
+.profileInput {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 1rem;
+    color: #2d3748;
+    transition: border-color 0.2s;
+}
+
+.profileInput:focus {
+    outline: none;
+    border-color: #437E84;
+    box-shadow: 0 0 0 3px rgba(67, 126, 132, 0.1);
+}
+
+.profileEditActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #edf2f7;
+}
+
+.profileCancelButton {
+    padding: 0.75rem 1.5rem;
+    background: white;
+    border: 1px solid #e2e8f0;
+    color: #718096;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.profileCancelButton:hover {
+    background: #f7fafc;
+    color: #4a5568;
+}
+
+.profileSaveButton {
+    padding: 0.75rem 1.5rem;
+    background: #437E84;
+    border: none;
+    color: white;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.profileSaveButton:hover {
+    background: #36666b;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(67, 126, 132, 0.2);
+}
+
+.profileActionsList {
+    display: flex;
+    flex-direction: column;
+}
+
+.profileActionRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 0;
+    background: none;
+    border: none;
+    border-bottom: 1px solid #edf2f7;
+    width: 100%;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+}
+
+.profileActionRow:first-child {
+    padding-top: 0;
+}
+
+.profileActionRow:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.profileActionRow span:first-child {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #2d3748;
+}
+
+.profileActionRow:hover span:first-child {
+    color: #437E84;
+}
+
+.profileActionRow:hover .material-symbols-outlined {
+    color: #437E84 !important;
+    transform: translateX(4px);
+}
+
+.profileBottomActions {
+    margin-top: 3rem;
+    display: flex;
+    justify-content: center;
+}
+
+.profileLogoutButton {
+    padding: 0.75rem 2rem;
+    background: #fff5f5;
+    color: #e53e3e;
+    border: 1px solid #fed7d7;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.profileLogoutButton:hover {
+    background: #fed7d7;
+    border-color: #feb2b2;
+}
+
+.profileVersion {
+    text-align: center;
+    margin-top: 2rem;
+    color: #a0aec0;
+    font-size: 0.75rem;
+    line-height: 1.5;
+}

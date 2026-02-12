@@ -1,0 +1,40 @@
+{
+  "name": "appapp-web",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@next/env": "^16.0.3",
+    "@tiptap/extension-placeholder": "^3.11.0",
+    "@tiptap/extension-text-align": "^3.11.0",
+    "@tiptap/extension-underline": "^3.11.0",
+    "@tiptap/react": "^3.11.0",
+    "@tiptap/starter-kit": "^3.11.0",
+    "@types/dompurify": "^3.2.0",
+    "cheerio": "^1.1.2",
+    "dompurify": "^3.3.1",
+    "firebase": "^10.13.0",
+    "firebase-admin": "^13.6.0",
+    "framer-motion": "^11.18.2",
+    "lucide-react": "^0.554.0",
+    "micromark-core-commonmark": "^2.0.3",
+    "next": "16.0.10",
+    "puppeteer": "^24.31.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.18",
+    "typescript": "^5"
+  }
+}

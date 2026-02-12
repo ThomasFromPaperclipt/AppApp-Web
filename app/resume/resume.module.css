@@ -1,0 +1,390 @@
+.container {
+    display: flex;
+    height: 100vh;
+    background-color: #f8f9fa;
+    font-family: 'DMSans', sans-serif;
+    overflow: hidden;
+}
+
+/* Sidebar (Selection Panel) */
+.sidebar {
+    width: 400px;
+    background: white;
+    border-right: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    z-index: 10;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.05);
+}
+
+.sidebarHeader {
+    padding: 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: white;
+}
+
+.backButton {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #718096;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.backButton:hover {
+    background: #f7fafc;
+    color: #2d3748;
+}
+
+.sidebarTitle {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #2d3748;
+    margin: 0;
+}
+
+.scrollContent {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+}
+
+.section {
+    margin-bottom: 2rem;
+}
+
+.sectionHeader {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 1rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.sectionTitle {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #4a5568;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.checkbox {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #cbd5e0;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.checkboxSelected {
+    background: #437E84;
+    border-color: #437E84;
+    color: white;
+}
+
+.itemRow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-bottom: 4px;
+}
+
+.itemRow:hover {
+    background: #f7fafc;
+}
+
+.reorderControls {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-right: 4px;
+}
+
+.reorderButton {
+    background: none;
+    border: none;
+    padding: 2px;
+    cursor: pointer;
+    color: #cbd5e0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.reorderButton:hover:not(:disabled) {
+    background: #e2e8f0;
+    color: #4a5568;
+}
+
+.reorderButton:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+.itemInfo {
+    flex: 1;
+}
+
+.itemTitle {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #2d3748;
+    margin-bottom: 2px;
+}
+
+.itemSubtitle {
+    font-size: 0.85rem;
+    color: #718096;
+}
+
+.notesInput {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    resize: vertical;
+    min-height: 100px;
+    margin-top: 0.5rem;
+}
+
+.notesInput:focus {
+    outline: none;
+    border-color: #437E84;
+    box-shadow: 0 0 0 3px rgba(67, 126, 132, 0.1);
+}
+
+.sidebarFooter {
+    padding: 1.5rem;
+    border-top: 1px solid #e2e8f0;
+    background: white;
+}
+
+.printButton {
+    width: 100%;
+    padding: 1rem;
+    background: linear-gradient(135deg, #437E84 0%, #2C5282 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.printButton:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(67, 126, 132, 0.3);
+}
+
+/* Preview Area */
+/* Preview Area */
+.previewArea {
+    flex: 1;
+    background: #536a7c;
+    padding: 2rem;
+    overflow-y: auto;
+    display: block;
+    /* Use block instead of flex to avoid height issues */
+}
+
+.previewLabel {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    text-align: center;
+    color: #ffffff;
+    margin: 0 auto 2rem auto;
+    /* Center with margin */
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-size: 14px;
+    background: rgb(113, 143, 142);
+    padding: 0.75rem 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e2e8f0;
+    width: fit-content;
+}
+
+.resumePage {
+    background: white;
+    width: 8.5in;
+    min-height: 11in;
+    height: auto;
+    /* Ensure it wraps content */
+    padding: 0.75in;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+    margin: 0 auto 2rem auto;
+    /* Center with margin */
+    overflow: visible;
+    display: block;
+}
+
+/* Resume Content Styles (Matches Mobile PDF) */
+.resumeHeader {
+    text-align: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #cbd5e1;
+}
+
+.resumeName {
+    font-family: 'Inter', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: #23272f;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.025em;
+}
+
+.resumeSubtitle {
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: #64748b;
+    font-weight: 400;
+}
+
+.resumeSection {
+    margin-bottom: 1.5rem;
+}
+
+.resumeSectionTitle {
+    font-family: 'Inter', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: #23272f;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid #cbd5e1;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.resumeItem {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background: #f8fafc;
+    /* Lighter gray for web preview */
+    border-radius: 6px;
+    border-left: 3px solid #64748b;
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+.resumeItemHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+}
+
+.resumeItemName {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    color: #23272f;
+    font-size: 12px;
+}
+
+.resumeItemPosition {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    color: #475569;
+    font-weight: 500;
+}
+
+.resumeItemDetails {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    color: #374151;
+    line-height: 1.4;
+}
+
+.resumeItemMeta {
+    font-size: 10px;
+    color: #64748b;
+    margin-bottom: 0.25rem;
+}
+
+.printFooter {
+    display: none;
+}
+
+/* Print Styles */
+@media print {
+    .sidebar {
+        display: none;
+    }
+
+    .previewArea {
+        padding: 0;
+        background: white;
+        height: auto;
+        overflow: visible;
+    }
+
+    /* Hide the "Preview" label during print */
+    .previewLabel {
+        display: none;
+    }
+
+    .resumePage {
+        box-shadow: none;
+        margin: 0;
+        width: 100%;
+        max-width: none;
+        min-height: 0;
+        padding: 0.5in;
+        /* Add padding manually since we removed page margins */
+    }
+
+    .printFooter {
+        position: fixed;
+        bottom: 10px;
+        right: 10px;
+        display: flex !important;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.25rem;
+        z-index: 1000;
+    }
+
+    .container {
+        height: auto;
+        overflow: visible;
+        display: block;
+    }
+
+    @page {
+        margin: 0;
+        /* Removes browser headers and footers */
+        size: auto;
+    }
+}
