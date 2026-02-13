@@ -1,0 +1,443 @@
+/* Page Wrapper */
+.pageWrapper {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    padding: 2rem;
+}
+
+/* Loading State */
+.loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    gap: 1rem;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid #e2e8f0;
+    border-top-color: #437E84;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Controls (Hidden when printing) */
+.controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 900px;
+    margin: 0 auto 2rem;
+    gap: 1rem;
+}
+
+.backButton,
+.printButton {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.backButton {
+    background: white;
+    color: #2D3748;
+    border: 1px solid #E2E8F0;
+}
+
+.backButton:hover {
+    background: #F7FAFC;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.printButton {
+    background: #437E84;
+    color: white;
+}
+
+.printButton:hover {
+    background: #356369;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(67, 126, 132, 0.3);
+}
+
+/* Resume Container */
+.resume {
+    max-width: 900px;
+    margin: 0 auto;
+    background: white;
+    padding: 3rem;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+/* Header */
+.header {
+    text-align: center;
+    padding-bottom: 2rem;
+    border-bottom: 2px solid #E2E8F0;
+    margin-bottom: 2.5rem;
+}
+
+.name {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #2D3748;
+    margin: 0 0 0.5rem;
+        font-family: 'Poppins', sans-serif;
+}
+
+.gradeLevel {
+    font-size: 1.125rem;
+    color: #437E84;
+    margin: 0.25rem 0;
+    font-weight: 300;
+}
+
+.email {
+    font-size: 1rem;
+    color: #718096;
+    margin: 0.5rem 0;
+}
+
+.generatedDate {
+    font-size: 0.875rem;
+    color: #A0AEC0;
+    margin: 1rem 0 0;
+    font-style: italic;
+}
+
+/* Sections */
+.section {
+    margin-bottom: 2.5rem;
+}
+
+.sectionTitle {
+    font-size: 1.75rem;
+    font-weight: 400;
+    color: #2D3748;
+    margin: 0 0 1.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #437E84;
+    font-family: 'Staatliches', sans-serif;
+    page-break-inside: avoid;
+}
+
+/* Items (Activities, Honors) */
+.item {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #E2E8F0;
+}
+
+.item:last-child {
+    border-bottom: none;
+}
+
+.itemHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+    gap: 1rem;
+}
+
+.itemTitle {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #2D3748;
+    margin: 0;
+    flex: 1;
+}
+
+.itemMeta {
+    font-size: 0.875rem;
+    color: #437E84;
+    font-weight: 500;
+    background: #EFF6FF;
+    padding: 0.25rem 0.75rem;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+
+.itemPosition {
+    font-size: 1rem;
+    color: #4A5568;
+    font-weight: 500;
+    margin: 0.25rem 0 0.5rem;
+}
+
+.itemDate {
+    font-size: 0.875rem;
+    color: #718096;
+    margin: 0.25rem 0 0.5rem;
+}
+
+.itemDescription {
+    font-size: 0.95rem;
+    color: #4A5568;
+    line-height: 1.6;
+    margin: 0.5rem 0;
+}
+
+.itemDetails {
+    display: flex;
+    gap: 0.75rem;
+    font-size: 0.875rem;
+    color: #718096;
+    margin-top: 0.75rem;
+}
+
+/* Test Scores */
+.testCategory {
+    margin-bottom: 1.5rem;
+}
+
+.testCategoryTitle {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #4A5568;
+    margin: 0 0 0.75rem;
+}
+
+.testGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.75rem;
+}
+
+.testItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: #F7FAFC;
+    border-radius: 8px;
+    border: 1px solid #E2E8F0;
+}
+
+.testName {
+    font-size: 0.95rem;
+    color: #4A5568;
+    font-weight: 500;
+}
+
+.testScore {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #437E84;
+}
+
+/* Footer */
+.footer {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid #E2E8F0;
+    text-align: center;
+}
+
+.footer p {
+    font-size: 0.875rem;
+    color: #A0AEC0;
+    margin: 0;
+}
+
+/* Print Styles */
+@page {
+    margin: 0.5in;
+    size: auto;
+}
+
+@media print {
+    .pageWrapper {
+        background: white;
+        padding: 0;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .controls {
+        display: none;
+    }
+
+    .resume {
+        max-width: 100%;
+        box-shadow: none;
+        border-radius: 0;
+        padding: 0;
+        margin: 0;
+    }
+
+    .header {
+        margin-bottom: 0.5rem;
+        padding-bottom: 0.25rem;
+        page-break-after: auto;
+        border-bottom: none;
+    }
+
+    .name {
+        font-size: 1.75rem;
+        margin: 0 0 0.25rem;
+    }
+
+    .gradeLevel {
+        margin: 0.125rem 0;
+        font-size: 1rem;
+    }
+
+    .email {
+        margin: 0.25rem 0;
+        font-size: 0.875rem;
+    }
+
+    .generatedDate {
+        margin: 0.5rem 0 0;
+        font-size: 0.75rem;
+    }
+
+    .section {
+        page-break-before: auto;
+        page-break-inside: auto;
+        margin-bottom: 1rem;
+    }
+
+    .section:first-of-type {
+        margin-top: 0;
+    }
+
+    .sectionTitle {
+        font-size: 1.25rem;
+        margin: 0 0 0.5rem;
+        padding-bottom: 0.25rem;
+        border-bottom: none;
+        page-break-after: auto;
+    }
+
+    .item {
+        page-break-inside: auto;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.75rem;
+    }
+
+    .itemHeader {
+        margin-bottom: 0.25rem;
+    }
+
+    .itemTitle {
+        font-size: 1rem;
+    }
+
+    .itemMeta {
+        font-size: 0.75rem;
+        padding: 0.125rem 0.5rem;
+    }
+
+    .itemPosition {
+        font-size: 0.875rem;
+        margin: 0.125rem 0 0.25rem;
+    }
+
+    .itemDate {
+        font-size: 0.75rem;
+        margin: 0.125rem 0 0.25rem;
+    }
+
+    .itemDescription {
+        font-size: 0.875rem;
+        line-height: 1.4;
+        margin: 0.25rem 0;
+    }
+
+    .itemDetails {
+        font-size: 0.75rem;
+        margin-top: 0.5rem;
+        gap: 0.5rem;
+    }
+
+    .testCategory {
+        margin-bottom: 0.75rem;
+    }
+
+    .testCategoryTitle {
+        font-size: 1rem;
+        margin: 0 0 0.5rem;
+    }
+
+    .testGrid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+    }
+
+    .testItem {
+        padding: 0.5rem 0.75rem;
+    }
+
+    .testName {
+        font-size: 0.875rem;
+    }
+
+    .testScore {
+        font-size: 1rem;
+    }
+
+    .footer {
+        margin-top: 1rem;
+        padding-top: 0.75rem;
+    }
+
+    .footer p {
+        font-size: 0.75rem;
+    }
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .pageWrapper {
+        padding: 1rem;
+    }
+
+    .resume {
+        padding: 1.5rem;
+    }
+
+    .controls {
+        flex-direction: column;
+    }
+
+    .backButton,
+    .printButton {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .name {
+        font-size: 2rem;
+    }
+
+    .itemHeader {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .itemMeta {
+        align-self: flex-start;
+    }
+
+    .testGrid {
+        grid-template-columns: 1fr;
+    }
+}

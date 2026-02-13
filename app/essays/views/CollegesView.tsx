@@ -265,7 +265,7 @@ export default function CollegesView({ user, essays, colleges, setEssays, initia
 
         // Check if it's a versioned essay (has sourceEssayId)
         if (linkedEssay.sourceEssayId) {
-            if (confirm("Warning: Unlinking this essay will PERMANENTLY DELETE this college's version.")) {
+            if (confirm("WARNING: Unlinking this essay will PERMANENTLY DELETE this college's version. Branches linked to other colleges will be saved. Do you wish to proceed?")) {
                 try {
                     // Delete the essay doc
                     await deleteDoc(doc(db, 'users', user.uid, 'essays', linkedEssay.id));

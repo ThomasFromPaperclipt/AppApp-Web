@@ -197,6 +197,9 @@ export default function ValuesView({ user, essays, setEssays }: ValuesViewProps)
                 boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
             }}>
                 <h2 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px' }}>Core Values</h2>
+                <p style={{ color: '#6B7280', fontSize: '14px', marginBottom: '14px'}}>
+                    Add values to make sure every college gets the full picture of who you are!
+                </p>
 
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
                     <input

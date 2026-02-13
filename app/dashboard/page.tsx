@@ -1109,20 +1109,40 @@ export default function Dashboard() {
                                             : 'Your Application'}
                                     </h3>
                                     {(userData?.role === 'parent' || userData?.role === 'counselor') && (
-                                        <button
-                                            onClick={handleUnlinkSelf}
-                                            style={{
-                                                padding: '0.5rem 1rem',
-                                                fontSize: '0.875rem',
-                                                color: '#e53e3e',
-                                                background: 'transparent',
-                                                border: '1px solid #e53e3e',
-                                                borderRadius: '6px',
-                                                cursor: 'pointer'
-                                            }}
-                                        >
-                                            Unlink Student
-                                        </button>
+                                        <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                            <button
+                                                onClick={() => router.push(`/student-summary/${selectedStudentId}`)}
+                                                style={{
+                                                    padding: '0.5rem 1rem',
+                                                    fontSize: '0.875rem',
+                                                    color: '#437E84',
+                                                    background: 'transparent',
+                                                    border: '1px solid #437E84',
+                                                    borderRadius: '6px',
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.5rem'
+                                                }}
+                                            >
+                                                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>download</span>
+                                                View PDF Summary
+                                            </button>
+                                            <button
+                                                onClick={handleUnlinkSelf}
+                                                style={{
+                                                    padding: '0.5rem 1rem',
+                                                    fontSize: '0.875rem',
+                                                    color: '#e53e3e',
+                                                    background: 'transparent',
+                                                    border: '1px solid #e53e3e',
+                                                    borderRadius: '6px',
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                Unlink Student
+                                            </button>
+                                        </div>
                                     )}
                                 </div>
                                 <div className={styles.applicationContent}>
