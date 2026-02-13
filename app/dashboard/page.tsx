@@ -89,6 +89,7 @@ interface Essay {
     isCommonApp?: boolean;
     isEmphasized?: boolean;
     createdAt: Date | string;
+    unresolvedComments?: number; // Count of unresolved comments
 }
 
 // Global Helper Functions (can be moved to utils later)
@@ -243,7 +244,6 @@ export default function Dashboard() {
     }>({ activities: [], honors: [], tests: [], colleges: [], essays: [] });
     const [isNeilHovered, setIsNeilHovered] = useState(false);
     const [isInsightsOpen, setIsInsightsOpen] = useState(false);
-    const [viewingEssay, setViewingEssay] = useState<Essay | null>(null);
 
     const router = useRouter();
 
@@ -531,23 +531,36 @@ export default function Dashboard() {
                 // Process essays and fetch linked prompts
                 const rawEssays = essaysSnap.docs.map(d => ({ id: d.id, ...d.data() } as Essay));
 
-                // Fetch prompts for essays that have promptId
+                // Fetch prompts and comment counts for essays
                 const essaysWithPrompts = await Promise.all(
                     rawEssays.map(async (essay) => {
+                        let updatedEssay = { ...essay };
+
+                        // Fetch prompt if needed
                         if (essay.promptId && !essay.promptText) {
                             try {
                                 const promptDoc = await getDoc(doc(db, 'users', selectedStudentId, 'essay_prompts', essay.promptId));
                                 if (promptDoc.exists()) {
-                                    return {
-                                        ...essay,
-                                        promptText: promptDoc.data().promptText || ''
-                                    };
+                                    updatedEssay.promptText = promptDoc.data().promptText || '';
                                 }
                             } catch (e) {
                                 console.error('Error fetching prompt for essay:', essay.id, e);
                             }
                         }
-                        return essay;
+
+                        // Fetch unresolved comment count
+                        try {
+                            const commentsSnap = await getDocs(collection(db, 'users', selectedStudentId, 'essays', essay.id, 'comments'));
+                            const unresolvedCount = commentsSnap.docs.filter(doc => {
+                                const data = doc.data();
+                                return !data.parentCommentId && !data.isResolved;
+                            }).length;
+                            updatedEssay = { ...updatedEssay, unresolvedComments: unresolvedCount };
+                        } catch (e) {
+                            console.error('Error fetching comments for essay:', essay.id, e);
+                        }
+
+                        return updatedEssay;
                     })
                 );
 
@@ -1388,11 +1401,11 @@ export default function Dashboard() {
                                                 background: item.isEmphasized ? 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)' : undefined,
                                                 boxShadow: item.isEmphasized ? '0 4px 12px rgba(245, 158, 11, 0.15)' : undefined
                                             })}
-                                            onItemClick={(essay: Essay) => setViewingEssay(essay)}
+                                            onItemClick={(essay: Essay) => router.push(`/essays/view/${essay.id}?studentId=${selectedStudentId}`)}
                                             renderCard={(essay: Essay) => (
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', height: '100%' }}>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                                             <h4 style={{ margin: 0, fontSize: '1rem', color: '#2D3748' }}>{essay.title || 'Untitled Essay'}</h4>
                                                             {essay.isEmphasized && (
                                                                 <span style={{
@@ -1407,6 +1420,22 @@ export default function Dashboard() {
                                                                     gap: '3px'
                                                                 }}>
                                                                     ⭐ Highlighted
+                                                                </span>
+                                                            )}
+                                                            {essay.unresolvedComments && essay.unresolvedComments > 0 && (
+                                                                <span style={{
+                                                                    fontSize: '11px',
+                                                                    background: '#DC2626',
+                                                                    color: 'white',
+                                                                    padding: '2px 6px',
+                                                                    borderRadius: '4px',
+                                                                    fontWeight: '600',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '3px'
+                                                                }}>
+                                                                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>comment</span>
+                                                                    {essay.unresolvedComments}
                                                                 </span>
                                                             )}
                                                         </div>
@@ -1744,7 +1773,7 @@ export default function Dashboard() {
                     {(userData?.role === 'student' || !userData?.role) && (
                         <div className={styles.applicationCard} style={{ marginTop: '2rem' }}>
                             <div className={styles.cardHeader}>
-                                <h3 className={styles.applicationCardTitle}>Upcoming Schedule</h3>
+                                <h3 className={styles.applicationCardTitle} onClick={() => handleNavigation('/calendar')}>Upcoming Schedule</h3>
                                 <button
                                     onClick={() => handleNavigation('/calendar')}
                                     style={{
@@ -2048,181 +2077,6 @@ export default function Dashboard() {
                 }
             </div >
 
-            {/* Essay Document Reader Modal */}
-            {viewingEssay && (
-                <div style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    background: 'rgba(0, 0, 0, 0.5)',
-                    backdropFilter: 'blur(4px)',
-                    zIndex: 1000,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '40px',
-                    animation: 'fadeIn 0.2s ease'
-                }}>
-                    <div style={{
-                        background: '#F3F4F6',
-                        borderRadius: '16px',
-                        width: '100%',
-                        maxWidth: '900px',
-                        maxHeight: '90vh',
-                        overflow: 'hidden',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
-                    }}>
-                        {/* Header */}
-                        <div style={{
-                            padding: '16px 24px',
-                            background: 'white',
-                            borderBottom: '1px solid #E5E7EB',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center'
-                        }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                                <button
-                                    onClick={() => setViewingEssay(null)}
-                                    style={{
-                                        background: 'none',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        color: '#6B7280',
-                                        padding: '8px',
-                                        borderRadius: '8px',
-                                        transition: 'background 0.2s'
-                                    }}
-                                    onMouseEnter={(e) => e.currentTarget.style.background = '#F3F4F6'}
-                                    onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
-                                >
-                                    <span className="material-symbols-outlined">arrow_back</span>
-                                </button>
-                                <div>
-                                    <h2 style={{
-                                        margin: 0,
-                                        fontSize: '18px',
-                                        fontWeight: '600',
-                                        color: '#1F2937'
-                                    }}>
-                                        {viewingEssay.title || 'Untitled Essay'}
-                                    </h2>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                                        <span style={{
-                                            fontSize: '12px',
-                                            background: '#FEEBC8',
-                                            color: '#744210',
-                                            padding: '2px 8px',
-                                            borderRadius: '4px',
-                                            fontWeight: '500'
-                                        }}>
-                                            {viewingEssay.status || 'Draft'}
-                                        </span>
-                                        <span style={{ fontSize: '12px', color: '#9CA3AF' }}>
-                                            Read-only view
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => setViewingEssay(null)}
-                                style={{
-                                    background: '#F3F4F6',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    padding: '8px',
-                                    borderRadius: '8px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    color: '#6B7280'
-                                }}
-                            >
-                                <span className="material-symbols-outlined">close</span>
-                            </button>
-                        </div>
-
-                        {/* Document Content */}
-                        <div style={{
-                            flex: 1,
-                            overflowY: 'auto',
-                            padding: '32px'
-                        }}>
-                            <div style={{
-                                background: 'white',
-                                maxWidth: '750px',
-                                margin: '0 auto',
-                                minHeight: '800px',
-                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                                padding: '60px 80px'
-                            }}>
-                                {/* Essay Title */}
-                                <h1 style={{
-                                    textAlign: 'center',
-                                    fontSize: '28px',
-                                    fontWeight: '700',
-                                    color: '#1F2937',
-                                    marginBottom: '32px',
-                                    fontFamily: "'Georgia', 'Times New Roman', serif"
-                                }}>
-                                    {viewingEssay.title || 'Untitled Essay'}
-                                </h1>
-
-                                {/* Prompt Section */}
-                                {(viewingEssay.promptText || viewingEssay.commonAppPrompt) && (
-                                    <div style={{
-                                        marginBottom: '40px',
-                                        padding: '20px 24px',
-                                        background: 'linear-gradient(135deg, #F7FAFC 0%, #EDF2F7 100%)',
-                                        borderLeft: `4px solid ${viewingEssay.isCommonApp ? '#ED8936' : '#437E84'}`,
-                                        borderRadius: '0 8px 8px 0'
-                                    }}>
-                                        <div style={{
-                                            fontSize: '12px',
-                                            fontWeight: '600',
-                                            color: viewingEssay.isCommonApp ? '#C05621' : '#437E84',
-                                            textTransform: 'uppercase',
-                                            letterSpacing: '0.05em',
-                                            marginBottom: '8px'
-                                        }}>
-                                            {viewingEssay.isCommonApp ? 'Common App Prompt' : 'Essay Prompt'}
-                                        </div>
-                                        <div style={{
-                                            fontSize: '15px',
-                                            color: '#4A5568',
-                                            lineHeight: '1.6',
-                                            fontStyle: 'italic'
-                                        }}>
-                                            {viewingEssay.promptText || viewingEssay.commonAppPrompt}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Essay Content */}
-                                <div style={{
-                                    fontSize: '17px',
-                                    lineHeight: '1.9',
-                                    color: '#2D3748',
-                                    fontFamily: "'Georgia', 'Times New Roman', serif"
-                                }}>
-                                    {viewingEssay.content ? (
-                                        <div dangerouslySetInnerHTML={{ __html: viewingEssay.content }} />
-                                    ) : viewingEssay.idea ? (
-                                        <ReactMarkdown>{viewingEssay.idea}</ReactMarkdown>
-                                    ) : (
-                                        <p style={{ color: '#9CA3AF', fontStyle: 'italic' }}>No essay content yet.</p>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Translucent Loading Screen */}
             {

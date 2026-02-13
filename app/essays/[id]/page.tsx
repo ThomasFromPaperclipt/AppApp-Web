@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { doc, getDoc, updateDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, getDocs, deleteDoc, onSnapshot, query, orderBy, Timestamp, addDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import DOMPurify from 'dompurify';
 import { onAuthStateChanged, User } from 'firebase/auth';
@@ -13,6 +13,9 @@ import TextAlign from '@tiptap/extension-text-align';
 import Underline from '@tiptap/extension-underline';
 import styles from '../../dashboard/dashboard.module.css';
 import { useDebounce } from '@/hooks/useDebounce';
+import { Comment } from '../types/comment';
+import CommentCard from '../components/CommentCard';
+import { CommentHighlight } from '../extensions/CommentHighlight';
 
 type EssayStatus = 'Idea' | 'In Progress' | 'Proofread' | 'Submitted';
 
@@ -31,6 +34,7 @@ interface Essay {
     collegeId?: string;
     promptText?: string; // Prompt text stored directly from idea generator
     isEmphasized?: boolean;
+    wordLimit?: number; // Word limit stored on essay when no prompt exists
 }
 
 interface Prompt {
@@ -50,15 +54,25 @@ interface College {
     collegeName: string;
 }
 
+interface UserData {
+    firstName?: string;
+    lastName?: string;
+    role?: 'student' | 'parent' | 'counselor';
+}
+
 export default function EssayEditor() {
     const router = useRouter();
     const params = useParams();
     const [user, setUser] = useState<User | null>(null);
+    const [userData, setUserData] = useState<UserData | null>(null);
     const [essay, setEssay] = useState<Essay | null>(null);
     const [prompt, setPrompt] = useState<Prompt | null>(null);
     const [college, setCollege] = useState<College | null>(null);
     const [collegeEssays, setCollegeEssays] = useState<Essay[]>([]);
     const [values, setValues] = useState<Value[]>([]);
+    const [comments, setComments] = useState<Comment[]>([]);
+    const [unresolvedCount, setUnresolvedCount] = useState(0);
+    const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
     // Auto-save state
@@ -119,6 +133,10 @@ export default function EssayEditor() {
             TextAlign.configure({
                 types: ['heading', 'paragraph'],
             }),
+            CommentHighlight.configure({
+                comments: comments,
+                onCommentClick: (commentId) => setSelectedCommentId(commentId),
+            }),
         ],
         content: '',
         immediatelyRender: false,
@@ -144,6 +162,16 @@ export default function EssayEditor() {
                 return;
             }
             setUser(user);
+
+            // Fetch user data
+            try {
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                if (userDoc.exists()) {
+                    setUserData(userDoc.data() as UserData);
+                }
+            } catch (error) {
+                console.error('Error fetching user data:', error);
+            }
 
             if (params.id) {
                 try {
@@ -219,6 +247,77 @@ export default function EssayEditor() {
             setWordCount(calculateWordCount(essay.content));
         }
     }, [essay?.content]);
+
+    // Real-time comment loading
+    useEffect(() => {
+        if (!user || !params.id) return;
+
+        const commentsRef = collection(db, 'users', user.uid, 'essays', params.id as string, 'comments');
+        const commentsQuery = query(commentsRef, orderBy('createdAt', 'asc'));
+
+        const unsubscribe = onSnapshot(commentsQuery, (snapshot) => {
+            const commentsData = snapshot.docs.map((doc) => ({
+                id: doc.id,
+                ...doc.data(),
+            })) as Comment[];
+            setComments(commentsData);
+
+            // Calculate unresolved count (only top-level comments)
+            const unresolved = commentsData.filter(c => !c.parentCommentId && !c.isResolved).length;
+            setUnresolvedCount(unresolved);
+        });
+
+        return () => unsubscribe();
+    }, [user, params.id]);
+
+    // Apply comment highlights when comments change
+    useEffect(() => {
+        if (!editor) return;
+
+        // Clear ALL existing highlights by traversing the entire document
+        const { doc } = editor.state;
+        const { tr } = editor.state;
+        const markType = editor.schema.marks.commentHighlight;
+        if (markType) {
+            doc.descendants((node, pos) => {
+                if (node.isText) {
+                    node.marks.forEach((mark) => {
+                        if (mark.type.name === 'commentHighlight') {
+                            tr.removeMark(pos, pos + node.nodeSize, markType);
+                        }
+                    });
+                }
+            });
+            if (tr.steps.length > 0) {
+                editor.view.dispatch(tr);
+            }
+        }
+
+        // Only highlight unresolved comments
+        comments.forEach((comment) => {
+            // Only highlight top-level unresolved comments
+            if (!comment.parentCommentId && !comment.isResolved) {
+                const { startOffset, endOffset } = comment.anchor;
+                try {
+                    editor.chain()
+                        .focus()
+                        .setTextSelection({ from: startOffset, to: endOffset })
+                        .setCommentHighlight(comment.id)
+                        .run();
+                } catch (error) {
+                    // Ignore errors if text position is out of bounds
+                    console.warn('Could not apply highlight for comment:', comment.id, error);
+                }
+            }
+        });
+
+        // Reset selection to avoid keeping text selected
+        try {
+            editor.commands.setTextSelection(0);
+        } catch (error) {
+            // Ignore
+        }
+    }, [editor, comments]);
 
     // Update sibling content when selection changes
     useEffect(() => {
@@ -338,15 +437,27 @@ export default function EssayEditor() {
     };
 
     const handleUpdateWordLimit = async () => {
-        if (!user || !prompt) return;
+        if (!user || !essay) return;
 
         try {
             const wordLimit = editWordLimitValue ? parseInt(editWordLimitValue) : null;
-            await updateDoc(doc(db, 'users', user.uid, 'essay_prompts', prompt.id), {
+
+            // Always save word limit to essay document for persistence
+            await updateDoc(doc(db, 'users', user.uid, 'essays', essay.id), {
                 wordLimit: wordLimit || null
             });
 
-            setPrompt({ ...prompt, wordLimit: wordLimit || undefined });
+            // Also update prompt if it exists
+            if (prompt && prompt.id) {
+                await updateDoc(doc(db, 'users', user.uid, 'essay_prompts', prompt.id), {
+                    wordLimit: wordLimit || null
+                });
+                setPrompt({ ...prompt, wordLimit: wordLimit || undefined });
+            }
+
+            // Update local essay state
+            setEssay({ ...essay, wordLimit: wordLimit || undefined });
+
             setEditingWordLimit(false);
             setEditWordLimitValue('');
         } catch (error) {
@@ -375,6 +486,48 @@ export default function EssayEditor() {
         const siblingDoc = await getDoc(doc(db, 'users', user.uid, 'essays', siblingId));
         if (siblingDoc.exists()) {
             setSiblingContent(siblingDoc.data().content || '');
+        }
+    };
+
+    // Comment handlers
+    const handleReplyToComment = async (parentCommentId: string, replyContent: string) => {
+        if (!user || !params.id || !userData) return;
+
+        const parentComment = comments.find(c => c.id === parentCommentId);
+        if (!parentComment) return;
+
+        try {
+            const commentsRef = collection(db, 'users', user.uid, 'essays', params.id as string, 'comments');
+            await addDoc(commentsRef, {
+                essayId: params.id as string,
+                authorId: user.uid,
+                authorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'Student',
+                authorRole: 'student',
+                content: replyContent.trim(),
+                createdAt: Timestamp.now(),
+                updatedAt: Timestamp.now(),
+                anchor: parentComment.anchor,
+                parentCommentId,
+                isResolved: false,
+                isEdited: false,
+            });
+        } catch (error) {
+            console.error('Error adding reply:', error);
+        }
+    };
+
+    const handleToggleResolve = async (commentId: string, currentResolvedStatus: boolean) => {
+        if (!user || !params.id) return;
+
+        try {
+            const commentRef = doc(db, 'users', user.uid, 'essays', params.id as string, 'comments', commentId);
+            await updateDoc(commentRef, {
+                isResolved: !currentResolvedStatus,
+                resolvedAt: !currentResolvedStatus ? Timestamp.now() : null,
+                resolvedBy: !currentResolvedStatus ? user.uid : null,
+            });
+        } catch (error) {
+            console.error('Error toggling resolve:', error);
         }
     };
 
@@ -777,7 +930,7 @@ export default function EssayEditor() {
                                     left: 0,
                                     right: 0,
                                     bottom: 0,
-                                    background: 'rgba(74, 86, 80, 0.95)',
+                                    background: 'rgba(204, 204, 204, 0.95)',
                                     zIndex: 10,
                                     display: 'flex',
                                     flexDirection: 'column',
@@ -786,8 +939,8 @@ export default function EssayEditor() {
                                     padding: '40px',
                                     textAlign: 'center'
                                 }}>
-                                    <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#ffffffff', marginBottom: '8px' }}>Compare Versions</h2>
-                                    <p style={{ color: '#ffffffff', marginBottom: '32px', maxWidth: '400px' }}>Select another branch of this essay to view it side-by-side with your current draft.</p>
+                                    <h2 style={{ fontSize: '24px', fontWeight: '800', color: 'rgb(0, 0, 0)', marginBottom: '8px' }}>Compare Versions</h2>
+                                    <p style={{ color: 'rgb(0, 0, 0)', marginBottom: '32px', maxWidth: '400px', fontWeight: '400',}}>Select another branch of this essay to view it side-by-side with your current draft.</p>
 
                                     {siblingEssays.length > 0 ? (
                                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', width: '100%', maxWidth: '800px' }}>
@@ -1015,26 +1168,26 @@ export default function EssayEditor() {
                             <div style={{
                                 fontSize: '48px',
                                 fontWeight: '700',
-                                color: prompt?.wordLimit
-                                    ? (wordCount > prompt.wordLimit ? '#EF4444' : wordCount > prompt.wordLimit * 0.9 ? '#F59E0B' : '#10B981')
+                                color: (prompt?.wordLimit || essay?.wordLimit)
+                                    ? (wordCount > (prompt?.wordLimit || essay?.wordLimit || 0) ? '#EF4444' : wordCount > (prompt?.wordLimit || essay?.wordLimit || 0) * 0.9 ? '#F59E0B' : '#10B981')
                                     : '#437E84',
                                 lineHeight: '1',
                                 marginBottom: '8px'
                             }}>
                                 {wordCount}
                             </div>
-                            {prompt?.wordLimit && (
+                            {(prompt?.wordLimit || essay?.wordLimit) && (
                                 <div style={{ fontSize: '14px', color: '#6B7280' }}>
-                                    / {prompt.wordLimit} words
+                                    / {prompt?.wordLimit || essay?.wordLimit} words
                                     <div style={{
                                         marginTop: '8px',
                                         fontSize: '12px',
                                         fontWeight: '600',
-                                        color: wordCount > prompt.wordLimit ? '#EF4444' : wordCount > prompt.wordLimit * 0.9 ? '#F59E0B' : '#10B981'
+                                        color: wordCount > (prompt?.wordLimit || essay?.wordLimit || 0) ? '#EF4444' : wordCount > (prompt?.wordLimit || essay?.wordLimit || 0) * 0.9 ? '#F59E0B' : '#10B981'
                                     }}>
-                                        {wordCount > prompt.wordLimit
-                                            ? `${wordCount - prompt.wordLimit} over limit`
-                                            : `${prompt.wordLimit - wordCount} remaining`}
+                                        {wordCount > (prompt?.wordLimit || essay?.wordLimit || 0)
+                                            ? `${wordCount - (prompt?.wordLimit || essay?.wordLimit || 0)} over limit`
+                                            : `${(prompt?.wordLimit || essay?.wordLimit || 0) - wordCount} remaining`}
                                     </div>
                                 </div>
                             )}
@@ -1066,10 +1219,13 @@ export default function EssayEditor() {
                                             border: 'none',
                                             borderRadius: '6px',
                                             cursor: 'pointer',
-                                            fontWeight: '500'
+                                            fontWeight: '500',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center'
                                         }}
                                     >
-                                        ✓
+                                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>check</span>
                                     </button>
                                     <button
                                         onClick={() => {
@@ -1084,17 +1240,20 @@ export default function EssayEditor() {
                                             border: 'none',
                                             borderRadius: '6px',
                                             cursor: 'pointer',
-                                            fontWeight: '500'
+                                            fontWeight: '500',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center'
                                         }}
                                     >
-                                        ✕
+                                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>close</span>
                                     </button>
                                 </div>
                             ) : (
                                 <button
                                     onClick={() => {
                                         setEditingWordLimit(true);
-                                        setEditWordLimitValue(prompt?.wordLimit?.toString() || '');
+                                        setEditWordLimitValue((prompt?.wordLimit || essay?.wordLimit)?.toString() || '');
                                     }}
                                     style={{
                                         marginTop: '12px',
@@ -1109,7 +1268,7 @@ export default function EssayEditor() {
                                         fontWeight: '500'
                                     }}
                                 >
-                                    {prompt?.wordLimit ? '✏️ Edit Word Limit' : '+ Add Word Limit'}
+                                    {(prompt?.wordLimit || essay?.wordLimit) ? '✏️ Edit Word Limit' : '+ Add Word Limit'}
                                 </button>
                             )}
                         </div>
@@ -1238,6 +1397,47 @@ export default function EssayEditor() {
                                                     <span style={{ fontSize: '14px', color: '#374151' }}>{value.name}</span>
                                                 </div>
                                             </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Comments Section */}
+                        <div style={{ padding: '20px', borderBottom: '1px solid #E5E7EB' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                <h3 style={{ fontSize: '12px', fontWeight: '600', color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+                                    Comments
+                                </h3>
+                                {unresolvedCount > 0 && (
+                                    <span style={{
+                                        backgroundColor: '#F59E0B',
+                                        color: 'white',
+                                        fontSize: '11px',
+                                        fontWeight: '600',
+                                        padding: '2px 8px',
+                                        borderRadius: '12px'
+                                    }}>
+                                        {unresolvedCount} new
+                                    </span>
+                                )}
+                            </div>
+                            {comments.filter(c => !c.parentCommentId).length === 0 ? (
+                                <div style={{ fontSize: '13px', color: '#9CA3AF', fontStyle: 'italic' }}>
+                                    No comments yet.
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
+                                    {comments.filter(c => !c.parentCommentId).map(comment => {
+                                        const replies = comments.filter(c => c.parentCommentId === comment.id);
+                                        return (
+                                            <CommentCard
+                                                key={comment.id}
+                                                comment={comment}
+                                                replies={replies}
+                                                onReply={handleReplyToComment}
+                                                onToggleResolve={handleToggleResolve}
+                                            />
                                         );
                                     })}
                                 </div>
