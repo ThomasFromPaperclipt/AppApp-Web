@@ -1047,3 +1047,76 @@
         transform: translateY(0);
     }
 }
+
+/* ========================================
+   Student Detail Tab Bar (Parent/Counselor View)
+   ======================================== */
+
+.studentTabBar {
+    display: flex;
+    gap: 0.25rem;
+    background: white;
+    padding: 0.5rem;
+    border-radius: 12px;
+    border: 1px solid #edf2f7;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    margin-top: 1.5rem;
+    margin-bottom: 1.5rem;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+.studentTab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    font-family: 'DMSans', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #718096;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.studentTab:hover {
+    background: #F7FAFC;
+    color: #4A5568;
+}
+
+.studentTabActive {
+    background: #E9F5F7;
+    color: #437E84;
+    box-shadow: 0 1px 3px rgba(67, 126, 132, 0.1);
+}
+
+.studentTabBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 11px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: #edf2f7;
+    color: #718096;
+    line-height: 1;
+}
+
+.studentTabActive .studentTabBadge {
+    background: #437E84;
+    color: white;
+}
+
+.studentTabContent {
+    min-height: 200px;
+}

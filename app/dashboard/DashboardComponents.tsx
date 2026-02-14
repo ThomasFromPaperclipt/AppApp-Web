@@ -13,6 +13,8 @@ interface DataCategorySectionProps {
     searchKeys?: string[];
     emptyMessage?: string;
     onItemClick?: (item: any) => void;
+    defaultExpanded?: boolean;
+    hideCollapseToggle?: boolean;
 }
 
 export const DataCategorySection: React.FC<DataCategorySectionProps> = ({
@@ -26,11 +28,13 @@ export const DataCategorySection: React.FC<DataCategorySectionProps> = ({
     groupBy,
     searchKeys = ['name', 'title'],
     emptyMessage = "No items recorded yet.",
-    onItemClick
+    onItemClick,
+    defaultExpanded = false,
+    hideCollapseToggle = false
 }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-    const [isSectionExpanded, setIsSectionExpanded] = useState(false);
+    const [isSectionExpanded, setIsSectionExpanded] = useState(defaultExpanded);
 
     const toggleExpand = (id: string) => {
         const newExpanded = new Set(expandedIds);
@@ -148,29 +152,32 @@ export const DataCategorySection: React.FC<DataCategorySectionProps> = ({
         );
     }
 
+    const isExpanded = hideCollapseToggle ? true : isSectionExpanded;
+
     return (
         <div className={styles.categorySection}>
             <div
                 className={styles.sectionHeaderRow}
-                onClick={() => setIsSectionExpanded(!isSectionExpanded)}
-                style={{ cursor: 'pointer', userSelect: 'none' }}
+                onClick={hideCollapseToggle ? undefined : () => setIsSectionExpanded(!isSectionExpanded)}
+                style={{ cursor: hideCollapseToggle ? 'default' : 'pointer', userSelect: 'none' }}
             >
                 <h3 className={styles.sectionTitle} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span
-                        className="material-symbols-outlined"
-                        style={{
-                            transform: isSectionExpanded ? 'rotate(180deg)' : 'rotate(-90deg)',
-                            transition: 'transform 0.3s ease',
-                            color: '#718096'
-                        }}
-                    >
-                        expand_more
-                    </span>
+                    {!hideCollapseToggle && (
+                        <span
+                            className="material-symbols-outlined"
+                            style={{
+                                transform: isSectionExpanded ? 'rotate(180deg)' : 'rotate(-90deg)',
+                                transition: 'transform 0.3s ease',
+                                color: '#718096'
+                            }}
+                        >
+                            expand_more
+                        </span>
+                    )}
                     <span className="material-symbols-outlined" style={{ color: iconColor }}>{icon}</span>
                     {title}
                 </h3>
-                {/* Only show search if expanded */}
-                {isSectionExpanded && items.length > 0 && (
+                {isExpanded && items.length > 0 && (
                     <div className={styles.inlineSearch} onClick={(e) => e.stopPropagation()}>
                         <span className="material-symbols-outlined">search</span>
                         <input
@@ -183,7 +190,7 @@ export const DataCategorySection: React.FC<DataCategorySectionProps> = ({
                 )}
             </div>
 
-            {isSectionExpanded && (
+            {isExpanded && (
                 <div style={{ marginTop: '1rem', animation: 'fadeIn 0.3s ease' }}>
                     {content}
                 </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { doc, getDoc, collection, getDocs, updateDoc, arrayUnion, query, where, Timestamp, onSnapshot, deleteDoc, getCountFromServer } from 'firebase/firestore';
 import { auth, db, functions } from '@/lib/firebase';
@@ -9,6 +9,7 @@ import { httpsCallable } from 'firebase/functions';
 import { calculateAndUpdateScores } from '@/lib/scoreCalculator';
 
 import ReactMarkdown from 'react-markdown';
+import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from '@/components/Sidebar';
 import styles from './dashboard.module.css';
 import { DataCategorySection } from './DashboardComponents';
@@ -212,9 +213,6 @@ export default function Dashboard() {
     const [activeTab, setActiveTab] = useState('dashboard');
     const [loading, setLoading] = useState(true);
     const [navigating, setNavigating] = useState(false);
-    const [linkCode, setLinkCode] = useState('');
-    const [linking, setLinking] = useState(false);
-    const [linkError, setLinkError] = useState('');
     const [canRecalculate, setCanRecalculate] = useState(true);
     const [calculating, setCalculating] = useState(false);
     const [vocabStats, setVocabStats] = useState({
@@ -244,8 +242,23 @@ export default function Dashboard() {
     }>({ activities: [], honors: [], tests: [], colleges: [], essays: [] });
     const [isNeilHovered, setIsNeilHovered] = useState(false);
     const [isInsightsOpen, setIsInsightsOpen] = useState(false);
+    const [activeStudentTab, setActiveStudentTab] = useState<string>('activities');
 
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const studentIdFromUrl = searchParams.get('studentId');
+
+    // Sync URL parameter with state
+    useEffect(() => {
+        if (studentIdFromUrl !== selectedStudentId) {
+            setSelectedStudentId(studentIdFromUrl);
+        }
+    }, [studentIdFromUrl, selectedStudentId]);
+
+    // Reset navigating flag when navigation completes
+    useEffect(() => {
+        setNavigating(false);
+    }, [searchParams]);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -264,60 +277,7 @@ export default function Dashboard() {
                     const data = userDoc.data() as UserData;
                     setUserData(data);
 
-                    // 1. Handle Counselor OR Parent Sidebar List
-                    // Treat parents like counselors: fetch all linked students to populate sidebar
-                    if (data.role === 'counselor' || data.role === 'parent') {
-                        try {
-                            const linkedIds = data.linkedStudentIds || [];
-                            if (linkedIds.length > 0) {
-                                // Fetch all students in parallel
-                                const studentDocs = await Promise.all(
-                                    linkedIds.map(id => getDoc(doc(db, 'users', id)))
-                                );
-
-                                const students = studentDocs
-                                    .filter(doc => doc.exists())
-                                    .map(doc => {
-                                        const d = doc.data();
-                                        return {
-                                            uid: doc.id, // Ensure we use the doc ID as UID
-                                            firstName: d.firstName,
-                                            lastName: d.lastName,
-                                            gradeLevel: d.gradeLevel,
-                                            email: d.email,
-                                            ...d // Spread rest just in case but we constructed the essential interface
-                                        } as UserData;
-                                    });
-
-                                setLinkedStudents(students);
-
-                                // Default selection logic
-                                // Only auto-select for counselors (optional) or if desired. 
-                                // For parents, we want the "Overview" to be the default if they have multiple students or even one.
-                                if (data.role !== 'parent' && !selectedStudentId && students.length > 0) {
-                                    setSelectedStudentId(students[0].uid as string);
-                                }
-                            } else {
-                                setLinkedStudents([]);
-                            }
-                        } catch (err) {
-                            console.error('Error fetching linked students (client):', err);
-                        }
-                    }
-
-                    // 2. Determine Target Student for Main View
-                    let targetUid = currentUser.uid;
-                    let shouldFetchData = true;
-
-                    if (data.role === 'parent' || data.role === 'counselor') {
-                        if (selectedStudentId) {
-                            targetUid = selectedStudentId; // Driven by sidebar selection for both roles
-                        } else {
-                            shouldFetchData = false; // No student selected, show add UI
-                        }
-                    }
-
-                    // 3. Check for Grade Level Rollover (Automatic Update)
+                    // Check for Grade Level Rollover (Automatic Update)
                     // Academic year starts in August (Month 7)
                     const ACADEMIC_YEAR_START_MONTH = 7;
 
@@ -368,14 +328,13 @@ export default function Dashboard() {
                         }
                     }
 
-                    // 3. Fetch Dashboard Data
-                    if (shouldFetchData) {
-                        if (targetUid === currentUser.uid) {
-                            // A. Client-side Fetching (For Student's Own Data)
-                            // This avoids API issues if server env vars aren't set locally
-                            try {
-                                // Fetch Analytics
-                                const analyticsRef = doc(db, 'users', targetUid, 'analytics', 'monthlyScores');
+                    // Fetch Dashboard Data (only for students viewing their own data)
+                    if (data.role === 'student' || !data.role) {
+                        // A. Client-side Fetching (For Student's Own Data)
+                        // This avoids API issues if server env vars aren't set locally
+                        try {
+                            // Fetch Analytics
+                            const analyticsRef = doc(db, 'users', currentUser.uid, 'analytics', 'monthlyScores');
                                 const analyticsSnap = await getDoc(analyticsRef);
                                 const analytics = analyticsSnap.exists() ? analyticsSnap.data() as AnalyticsData : null;
                                 setAnalyticsData(analytics);
@@ -399,7 +358,7 @@ export default function Dashboard() {
                                 const newCounts: any = {};
 
                                 await Promise.all(subcollections.map(async (sub) => {
-                                    const subRef = collection(db, 'users', targetUid, sub);
+                                    const subRef = collection(db, 'users', currentUser.uid, sub);
                                     const snapshot = await getDocs(subRef);
                                     newCounts[sub] = snapshot.size;
                                 }));
@@ -407,11 +366,11 @@ export default function Dashboard() {
                                 setCounts(newCounts as Counts);
 
                                 // Fetch vocabulary stats
-                                const vocabSnapshot = await getDocs(collection(db, 'users', targetUid, 'vocabulary'));
+                                const vocabSnapshot = await getDocs(collection(db, 'users', currentUser.uid, 'vocabulary'));
                                 const savedCount = vocabSnapshot.docs.filter(doc => doc.data().saved).length;
 
                                 // Calculate streak
-                                const currentStreak = await calculateStreak(targetUid);
+                                const currentStreak = await calculateStreak(currentUser.uid);
 
                                 setVocabStats({
                                     wordsLearned: vocabSnapshot.size,
@@ -420,7 +379,7 @@ export default function Dashboard() {
                                 });
 
                                 // Fetch Events for Calendar Preview
-                                const eventsRef = collection(db, 'users', targetUid, 'events');
+                                const eventsRef = collection(db, 'users', currentUser.uid, 'events');
                                 const eventsSnap = await getDocs(eventsRef);
                                 const allEvents: CalendarEvent[] = [];
                                 eventsSnap.forEach(doc => {
@@ -446,51 +405,8 @@ export default function Dashboard() {
 
                                 setUpcomingEvents(futureEvents);
 
-                            } catch (err) {
-                                console.error('Error fetching dashboard data (client):', err);
-                            }
-                        } else {
-                            // B. Client-side Fetching (For Parent/Counselor Viewing Linked Data)
-                            // Now permitted by 'hasGrant' security rule in firestore.rules
-                            try {
-                                // Fetch Analytics
-                                const analyticsRef = doc(db, 'users', targetUid, 'analytics', 'monthlyScores');
-                                const analyticsSnap = await getDoc(analyticsRef);
-                                const analytics = analyticsSnap.exists() ? analyticsSnap.data() as AnalyticsData : null;
-                                setAnalyticsData(analytics);
-
-                                // Update canRecalculate (disabled for viewers usually, but good to have state)
-                                setCanRecalculate(false);
-
-                                // Fetch Counts using getCountFromServer (efficient)
-                                const subcollections = ['activities', 'honors', 'tests', 'essays', 'colleges'];
-                                const newCounts: any = {};
-
-                                await Promise.all(subcollections.map(async (sub) => {
-                                    const subRef = collection(db, 'users', targetUid, sub);
-                                    // Use getCountFromServer for efficiency if supported by SDK, 
-                                    // or fallback to getDocs().size. SDK v10.13 supports it.
-                                    try {
-                                        const snapshot = await getCountFromServer(subRef);
-                                        newCounts[sub] = snapshot.data().count;
-                                    } catch (e) {
-                                        // Fallback for safety
-                                        const snapshot = await getDocs(subRef);
-                                        newCounts[sub] = snapshot.size;
-                                    }
-                                }));
-
-                                setCounts(newCounts as Counts);
-
-                                // Fetch upcoming events for viewer? 
-                                // Optional, mimicking previous behavior which seemingly didn't show events 
-                                // based on the API response structure viewed earlier (API only returned profile, analytics, counts).
-                                // But if we want to show it, we can. Let's start with parity (API didn't return events).
-
-                            } catch (err) {
-                                console.error('Error fetching dashboard data (client viewer):', err);
-                                // If permission denied, it will be caught here.
-                            }
+                        } catch (err) {
+                            console.error('Error fetching dashboard data (client):', err);
                         }
                     }
                 }
@@ -502,6 +418,46 @@ export default function Dashboard() {
         });
         return () => unsubscribe();
     }, [router]);
+
+    // Fetch linked students list for parents and counselors
+    useEffect(() => {
+        const fetchLinkedStudents = async () => {
+            if (!user || !userData) return;
+            if (userData.role !== 'counselor' && userData.role !== 'parent') return;
+
+            try {
+                const linkedIds = userData.linkedStudentIds || [];
+                if (linkedIds.length > 0) {
+                    // Fetch all students in parallel
+                    const studentDocs = await Promise.all(
+                        linkedIds.map(id => getDoc(doc(db, 'users', id)))
+                    );
+
+                    const students = studentDocs
+                        .filter(doc => doc.exists())
+                        .map(doc => {
+                            const d = doc.data();
+                            return {
+                                uid: doc.id,
+                                firstName: d.firstName,
+                                lastName: d.lastName,
+                                gradeLevel: d.gradeLevel,
+                                email: d.email,
+                                ...d
+                            } as UserData;
+                        });
+
+                    setLinkedStudents(students);
+                } else {
+                    setLinkedStudents([]);
+                }
+            } catch (err) {
+                console.error('Error fetching linked students:', err);
+            }
+        };
+
+        fetchLinkedStudents();
+    }, [user, userData]);
 
     // Fetch Detailed Data & Dashboard Info when Linked Student Selected
     useEffect(() => {
@@ -795,29 +751,6 @@ export default function Dashboard() {
         }
     };
 
-    const [sentRequests, setSentRequests] = useState<string[]>([]); // Track codes for session-based feedback
-
-    const handleLinkStudent = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!user || !linkCode) return;
-
-        setLinking(true);
-        setLinkError('');
-
-        try {
-            const claimShareCode = httpsCallable(functions, 'claimShareCode');
-            await claimShareCode({ code: linkCode });
-
-            // Add to session tracking to show feedback card
-            setSentRequests(prev => [...prev, linkCode]);
-            setLinkCode('');
-        } catch (error: any) {
-            console.error('Error linking student:', error);
-            setLinkError(error.message || 'Failed to link account. Please check the code and try again.');
-        } finally {
-            setLinking(false);
-        }
-    };
 
     const recalculateScores = async () => {
         if (!user) return;
@@ -911,205 +844,170 @@ export default function Dashboard() {
 
                 {/* Center Content */}
                 <main className={styles.centerContent}>
-                    {/* Welcome Hero Section */}
-                    <div className={styles.welcomeHero}>
-                        <div className={styles.welcomeContent}>
-                            <h2 className={styles.welcomeTitle}>
-                                {userData?.role === 'parent'
-                                    ? "Let's get your kids ready!"
-                                    : userData?.role === 'counselor'
-                                        ? "Let's get your students ready!"
-                                        : `Good ${new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, ${getWelcomeMessageName()}!`
-                                }
-                            </h2>
-                            <p className={styles.welcomeSubtitle}>
-                                {userData?.role === 'parent' || userData?.role === 'counselor'
-                                    ? "Here's how they're doing."
-                                    : "Ready to make some progress on your applications today? I'm here to help!"
-                                }
-                            </p>
+                    {/* Welcome Hero Section - Only show on overview (no studentId in URL) */}
+                    {!studentIdFromUrl && (
+                        <div className={styles.welcomeHero}>
+                            <div className={styles.welcomeContent}>
+                                <h2 className={styles.welcomeTitle}>
+                                    {userData?.role === 'parent'
+                                        ? "Let's get your kids ready!"
+                                        : userData?.role === 'counselor'
+                                            ? "Let's get your students ready!"
+                                            : `Good ${new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, ${getWelcomeMessageName()}!`
+                                    }
+                                </h2>
+                                <p className={styles.welcomeSubtitle}>
+                                    {userData?.role === 'parent' || userData?.role === 'counselor'
+                                        ? "Here's how they're doing."
+                                        : "Ready to make some progress on your applications today? I'm here to help!"
+                                    }
+                                </p>
+                            </div>
+                            <div
+                                className={styles.neilWrapper}
+                                onMouseEnter={() => setIsNeilHovered(true)}
+                                onMouseLeave={() => setIsNeilHovered(false)}
+                            >
+                                <img
+                                    src={isNeilHovered ? "/assets/flyingAIsmile.png" : "/assets/flyingAI.png"}
+                                    alt="Neil flying"
+                                    className={styles.neilImage}
+                                />
+                            </div>
                         </div>
-                        <div
-                            className={styles.neilWrapper}
-                            onMouseEnter={() => setIsNeilHovered(true)}
-                            onMouseLeave={() => setIsNeilHovered(false)}
-                        >
-                            <img
-                                src={isNeilHovered ? "/assets/flyingAIsmile.png" : "/assets/flyingAI.png"}
-                                alt="Neil flying"
-                                className={styles.neilImage}
-                            />
-                        </div>
-                    </div>
+                    )}
 
                     <h1 className={styles.pageTitle}>Dashboard</h1>
 
-                    {/* Parent/Counselor View: Link Student UI */}
+                    {/* Parent/Counselor View: Overview */}
                     {((userData?.role === 'parent' || userData?.role === 'counselor') && !selectedStudentId) ? (
                         <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-                            {/* Overview Header */}
-                            {linkedStudents.length > 0 && (
-                                <div style={{ marginBottom: '2rem' }}>
-                                    <h2 style={{ fontSize: '1.5rem', color: '#2D3748', marginBottom: '1rem' }}>Linked Students</h2>
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
-                                        {linkedStudents.map(student => (
-                                            <div
-                                                key={student.uid}
-                                                onClick={() => setSelectedStudentId(student.uid!)}
-                                                style={{
-                                                    background: 'white',
-                                                    borderRadius: '16px',
-                                                    padding: '1.5rem',
-                                                    boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
-                                                    cursor: 'pointer',
-                                                    border: '2px solid transparent',
-                                                    transition: 'all 0.2s',
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                                <h2 style={{ fontSize: '1.5rem', color: '#2D3748', margin: 0 }}>
+                                    {userData?.role === 'counselor' ? 'My Students' : 'Linked Students'}
+                                </h2>
+                                <button
+                                    onClick={() => router.push('/add-student')}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        padding: '0.75rem 1.25rem',
+                                        background: '#437E84',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '8px',
+                                        fontSize: '0.875rem',
+                                        fontWeight: '600',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>person_add</span>
+                                    {userData?.role === 'counselor' ? 'Add Student' : 'Link Student'}
+                                </button>
+                            </div>
+
+                            {linkedStudents.length > 0 ? (
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
+                                    {linkedStudents.map(student => (
+                                        <div
+                                            key={student.uid}
+                                            onClick={() => router.push(`/dashboard?studentId=${student.uid}`)}
+                                            style={{
+                                                background: 'white',
+                                                borderRadius: '16px',
+                                                padding: '1.5rem',
+                                                boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
+                                                cursor: 'pointer',
+                                                border: '2px solid transparent',
+                                                transition: 'all 0.2s',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: '1rem'
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.transform = 'translateY(-4px)';
+                                                e.currentTarget.style.borderColor = '#437E84';
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.transform = 'translateY(0)';
+                                                e.currentTarget.style.borderColor = 'transparent';
+                                            }}
+                                        >
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                                <div style={{
+                                                    width: '48px',
+                                                    height: '48px',
+                                                    borderRadius: '50%',
+                                                    background: '#437E84',
+                                                    color: 'white',
                                                     display: 'flex',
-                                                    flexDirection: 'column',
-                                                    gap: '1rem'
-                                                }}
-                                                onMouseEnter={(e) => {
-                                                    e.currentTarget.style.transform = 'translateY(-4px)';
-                                                    e.currentTarget.style.borderColor = '#437E84';
-                                                }}
-                                                onMouseLeave={(e) => {
-                                                    e.currentTarget.style.transform = 'translateY(0)';
-                                                    e.currentTarget.style.borderColor = 'transparent';
-                                                }}
-                                            >
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                                    <div style={{
-                                                        width: '48px',
-                                                        height: '48px',
-                                                        borderRadius: '50%',
-                                                        background: '#437E84',
-                                                        color: 'white',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        fontSize: '1.25rem',
-                                                        fontWeight: 'bold'
-                                                    }}>
-                                                        {student.firstName.charAt(0)}{student.lastName.charAt(0)}
-                                                    </div>
-                                                    <div>
-                                                        <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#2D3748' }}>{student.firstName} {student.lastName}</h3>
-                                                        <p style={{ margin: 0, fontSize: '0.875rem', color: '#718096' }}>{student.email}</p>
-                                                    </div>
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    fontSize: '1.25rem',
+                                                    fontWeight: 'bold'
+                                                }}>
+                                                    {student.firstName.charAt(0)}{student.lastName.charAt(0)}
                                                 </div>
-                                                <div style={{ background: '#F7FAFC', padding: '0.75rem', borderRadius: '8px', marginTop: 'auto' }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
-                                                        <span style={{ color: '#718096' }}>Grade Level</span>
-                                                        <span style={{ fontWeight: '600', color: '#2D3748' }}>{student.gradeLevel || 'N/A'}</span>
-                                                    </div>
+                                                <div>
+                                                    <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#2D3748' }}>{student.firstName} {student.lastName}</h3>
+                                                    <p style={{ margin: 0, fontSize: '0.875rem', color: '#718096' }}>{student.email}</p>
                                                 </div>
                                             </div>
-                                        ))}
-                                    </div>
+                                            <div style={{ background: '#F7FAFC', padding: '0.75rem', borderRadius: '8px', marginTop: 'auto' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+                                                    <span style={{ color: '#718096' }}>Grade Level</span>
+                                                    <span style={{ fontWeight: '600', color: '#2D3748' }}>{student.gradeLevel || 'N/A'}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
-                            )}
-
-                            {/* Link Student Form (Always visible in Overview, but styled differently if students exist) */}
-                            <div className={styles.linkStudentCard} style={{
-                                background: 'white',
-                                padding: '2.5rem',
-                                borderRadius: '16px',
-                                boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
-                                textAlign: 'center',
-                                maxWidth: '500px',
-                                margin: linkedStudents.length > 0 ? '3rem auto 0' : '0 auto'
-                            }}>
-                                {/* Session Feedback: Pending Requests */}
-                                {sentRequests.map((code, idx) => (
-                                    <div key={idx} style={{
-                                        background: '#FEFCBF',
-                                        border: '1px solid #F6E05E',
-                                        borderRadius: '8px',
-                                        padding: '1rem',
-                                        marginBottom: '1.5rem',
+                            ) : (
+                                <div style={{
+                                    background: 'white',
+                                    borderRadius: '16px',
+                                    padding: '3rem',
+                                    boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
+                                    textAlign: 'center'
+                                }}>
+                                    <div style={{
+                                        width: '64px',
+                                        height: '64px',
+                                        background: '#E9F5F7',
+                                        borderRadius: '50%',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        gap: '0.75rem'
+                                        margin: '0 auto 1.5rem'
                                     }}>
-                                        <div style={{
-                                            width: '32px', height: '32px', borderRadius: '50%',
-                                            background: '#ECC94B', color: 'white',
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            fontWeight: 'bold'
-                                        }}>
-                                            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>hourglass_top</span>
-                                        </div>
-                                        <div style={{ textAlign: 'left' }}>
-                                            <div style={{ fontWeight: '700', color: '#744210', fontSize: '0.9rem' }}>Request Pending</div>
-                                            <div style={{ fontSize: '0.8rem', color: '#975A16' }}>
-                                                Waiting for student approval (Code: {code})
-                                            </div>
-                                            <div style={{ fontSize: '0.8rem', color: '#975A16' }}>
-                                                You may need to refresh your page.
-                                            </div>
-                                        </div>
+                                        <span className="material-symbols-outlined" style={{ fontSize: '32px', color: '#437E84' }}>group</span>
                                     </div>
-                                ))}
-
-                                <div style={{
-                                    width: '64px',
-                                    height: '64px',
-                                    background: '#E9F5F7',
-                                    borderRadius: '50%',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    margin: '0 auto 1.5rem'
-                                }}>
-                                    <span className="material-symbols-outlined" style={{ fontSize: '32px', color: '#437E84' }}>person_add</span>
-                                </div>
-                                <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', color: '#2d3748' }}>
-                                    {userData?.role === 'counselor' ? 'Add Student to Roster' : 'Link Another Student'}
-                                </h2>
-                                <p style={{ color: '#718096', marginBottom: '2rem' }}>
-                                    Enter the 8-character sharing code from the student's dashboard to link their account.
-                                </p>
-
-                                <form onSubmit={handleLinkStudent} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                    <input
-                                        type="text"
-                                        value={linkCode}
-                                        onChange={(e) => setLinkCode(e.target.value.toUpperCase())}
-                                        placeholder="ENTER CODE"
-                                        maxLength={8}
-                                        style={{
-                                            padding: '1rem',
-                                            fontSize: '1.25rem',
-                                            textAlign: 'center',
-                                            letterSpacing: '4px',
-                                            borderRadius: '8px',
-                                            border: '2px solid #e2e8f0',
-                                            outline: 'none',
-                                            textTransform: 'uppercase',
-                                            fontWeight: 'bold'
-                                        }}
-                                    />
-                                    {linkError && <div style={{ color: '#e53e3e', fontSize: '0.875rem' }}>{linkError}</div>}
+                                    <h3 style={{ fontSize: '1.25rem', color: '#2D3748', marginBottom: '0.5rem' }}>No students linked yet</h3>
+                                    <p style={{ color: '#718096', marginBottom: '1.5rem' }}>
+                                        Get started by linking a student with their sharing code.
+                                    </p>
                                     <button
-                                        type="submit"
-                                        disabled={linking || linkCode.length !== 8}
+                                        onClick={() => router.push('/add-student')}
                                         style={{
-                                            padding: '1rem',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '0.5rem',
+                                            padding: '0.75rem 1.5rem',
                                             background: '#437E84',
                                             color: 'white',
                                             border: 'none',
                                             borderRadius: '8px',
                                             fontSize: '1rem',
                                             fontWeight: '600',
-                                            cursor: (linking || linkCode.length !== 8) ? 'not-allowed' : 'pointer',
-                                            opacity: (linking || linkCode.length !== 8) ? 0.7 : 1
+                                            cursor: 'pointer'
                                         }}
                                     >
-                                        {linking ? 'Linking...' : 'Link Student'}
+                                        <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>person_add</span>
+                                        {userData?.role === 'counselor' ? 'Add Your First Student' : 'Link Your First Student'}
                                     </button>
-                                </form>
-                            </div>
+                                </div>
+                            )}
                         </div>
                     ) : (
                         /* Application Readiness Score & Counts (Shown for Students OR Linked Parents) */
@@ -1205,8 +1103,14 @@ export default function Dashboard() {
                                                 <div
                                                     key={key}
                                                     className={styles.countItem}
-                                                    onClick={(userData?.role !== 'parent' && userData?.role !== 'counselor') ? () => handleNavigation(routeMap[key]) : undefined}
-                                                    style={{ cursor: (userData?.role !== 'parent' && userData?.role !== 'counselor') ? 'pointer' : 'default' }}
+                                                    onClick={() => {
+                                                        if (userData?.role === 'parent' || userData?.role === 'counselor') {
+                                                            setActiveStudentTab(key);
+                                                        } else {
+                                                            handleNavigation(routeMap[key]);
+                                                        }
+                                                    }}
+                                                    style={{ cursor: 'pointer' }}
                                                 >
                                                     <div className={styles.countNumber}>{count}</div>
                                                     <div className={styles.countLabel}>{key}</div>
@@ -1216,300 +1120,340 @@ export default function Dashboard() {
                                     </div>
                                 </div>
 
-                                {/* DETAILED DATA SECTION FOR PARENTS & COUNSELORS */}
+                                {/* TABBED DATA SECTION FOR PARENTS & COUNSELORS */}
                                 {(userData?.role === 'parent' || userData?.role === 'counselor') && (
-                                    <div style={{ marginTop: '3rem', display: 'flex', flexDirection: 'column', gap: '3rem' }}>
+                                    <>
+                                        <div className={styles.studentTabBar}>
+                                            {[
+                                                { key: 'activities', label: 'Activities', icon: 'skateboarding', countKey: 'activities' as keyof Counts },
+                                                { key: 'honors', label: 'Honors', icon: 'emoji_events', countKey: 'honors' as keyof Counts },
+                                                { key: 'tests', label: 'Tests', icon: 'book', countKey: 'tests' as keyof Counts },
+                                                { key: 'colleges', label: 'Colleges', icon: 'account_balance', countKey: 'colleges' as keyof Counts },
+                                                { key: 'essays', label: 'Essays', icon: 'edit_document', countKey: 'essays' as keyof Counts },
+                                            ].map((tab) => (
+                                                <button
+                                                    key={tab.key}
+                                                    className={`${styles.studentTab} ${activeStudentTab === tab.key ? styles.studentTabActive : ''}`}
+                                                    onClick={() => setActiveStudentTab(tab.key)}
+                                                >
+                                                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>{tab.icon}</span>
+                                                    {tab.label}
+                                                    <span className={styles.studentTabBadge}>{counts[tab.countKey]}</span>
+                                                </button>
+                                            ))}
+                                        </div>
 
-                                        {/* ACTIVITIES */}
-                                        <DataCategorySection
-                                            title="Activities"
-                                            icon="skateboarding"
-                                            iconColor="#000000ff"
-                                            items={detailedData.activities}
-                                            searchKeys={['organizationName', 'position', 'description']}
-                                            groupBy={(item) => getActivityTypeLabel(item.activityType)}
-                                            getItemStyle={(item) => ({ borderLeft: '4px solid #437E84' })}
-                                            renderCard={(activity: Activity) => (
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                                        <h4 style={{ margin: 0, fontSize: '1rem', color: '#2D3748', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '100%' }}>{activity.organizationName}</h4>
-                                                        {activity.isStarred && <span className="material-symbols-outlined" style={{ color: '#F59E0B', fontSize: '18px' }}>star</span>}
-                                                    </div>
-                                                    <p style={{ margin: 0, fontSize: '0.875rem', color: '#718096' }}>{activity.position}</p>
-                                                    <span style={{ fontSize: '0.75rem', background: '#EDF2F7', padding: '2px 8px', borderRadius: '4px', width: 'fit-content', marginTop: 'auto' }}>
-                                                        {getActivityTypeLabel(activity.activityType)}
-                                                    </span>
-                                                </div>
-                                            )}
-                                            renderDetail={(activity: Activity) => (
-                                                <div>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                                                        <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#2D3748' }}>{activity.organizationName}</h3>
-                                                    </div>
-                                                    <h4 style={{ margin: '0 0 1rem 0', color: '#4A5568', fontWeight: '500' }}>{activity.position}</h4>
+                                        <AnimatePresence mode="wait">
+                                            <motion.div
+                                                key={activeStudentTab}
+                                                initial={{ opacity: 0, y: 8 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: -8 }}
+                                                transition={{ duration: 0.2, ease: 'easeInOut' }}
+                                                className={styles.studentTabContent}
+                                            >
+                                                {activeStudentTab === 'activities' && (
+                                                    <DataCategorySection
+                                                        title="Activities"
+                                                        icon="skateboarding"
+                                                        iconColor="#000000ff"
+                                                        items={detailedData.activities}
+                                                        searchKeys={['organizationName', 'position', 'description']}
+                                                        groupBy={(item) => getActivityTypeLabel(item.activityType)}
+                                                        getItemStyle={(item) => ({ borderLeft: '4px solid #437E84' })}
+                                                        defaultExpanded={true}
+                                                        hideCollapseToggle={true}
+                                                        renderCard={(activity: Activity) => (
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                                                    <h4 style={{ margin: 0, fontSize: '1rem', color: '#2D3748', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '100%' }}>{activity.organizationName}</h4>
+                                                                    {activity.isStarred && <span className="material-symbols-outlined" style={{ color: '#F59E0B', fontSize: '18px' }}>star</span>}
+                                                                </div>
+                                                                <p style={{ margin: 0, fontSize: '0.875rem', color: '#718096' }}>{activity.position}</p>
+                                                                <span style={{ fontSize: '0.75rem', background: '#EDF2F7', padding: '2px 8px', borderRadius: '4px', width: 'fit-content', marginTop: 'auto' }}>
+                                                                    {getActivityTypeLabel(activity.activityType)}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                        renderDetail={(activity: Activity) => (
+                                                            <div>
+                                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                                                                    <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#2D3748' }}>{activity.organizationName}</h3>
+                                                                </div>
+                                                                <h4 style={{ margin: '0 0 1rem 0', color: '#4A5568', fontWeight: '500' }}>{activity.position}</h4>
+                                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                                                                    <div style={{ background: '#F7FAFC', padding: '1rem', borderRadius: '8px' }}>
+                                                                        <div style={{ fontSize: '0.75rem', color: '#718096', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Type</div>
+                                                                        <div style={{ fontWeight: '600' }}>{getActivityTypeLabel(activity.activityType)}</div>
+                                                                    </div>
+                                                                    <div style={{ background: '#F7FAFC', padding: '1rem', borderRadius: '8px' }}>
+                                                                        <div style={{ fontSize: '0.75rem', color: '#718096', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Grades</div>
+                                                                        <div style={{ fontWeight: '600' }}>{activity.gradeLevels.join(', ')}</div>
+                                                                    </div>
+                                                                </div>
+                                                                <p style={{ fontSize: '0.95rem', color: '#2D3748', lineHeight: '1.6' }}>
+                                                                    {activity.description}
+                                                                </p>
+                                                            </div>
+                                                        )}
+                                                    />
+                                                )}
 
-                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-                                                        <div style={{ background: '#F7FAFC', padding: '1rem', borderRadius: '8px' }}>
-                                                            <div style={{ fontSize: '0.75rem', color: '#718096', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Type</div>
-                                                            <div style={{ fontWeight: '600' }}>{getActivityTypeLabel(activity.activityType)}</div>
-                                                        </div>
-                                                        <div style={{ background: '#F7FAFC', padding: '1rem', borderRadius: '8px' }}>
-                                                            <div style={{ fontSize: '0.75rem', color: '#718096', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Grades</div>
-                                                            <div style={{ fontWeight: '600' }}>{activity.gradeLevels.join(', ')}</div>
-                                                        </div>
-                                                    </div>
-                                                    <p style={{ fontSize: '0.95rem', color: '#2D3748', lineHeight: '1.6' }}>
-                                                        {activity.description}
-                                                    </p>
-                                                </div>
-                                            )}
-                                        />
+                                                {activeStudentTab === 'honors' && (
+                                                    <DataCategorySection
+                                                        title="Honors & Awards"
+                                                        icon="emoji_events"
+                                                        iconColor="#000000ff"
+                                                        items={detailedData.honors}
+                                                        searchKeys={['honorTitle', 'description']}
+                                                        groupBy={(item) => getHonorTypeBadge(item.honorType)}
+                                                        getItemStyle={(item) => ({ borderLeft: '4px solid #F6E05E' })}
+                                                        defaultExpanded={true}
+                                                        hideCollapseToggle={true}
+                                                        renderCard={(honor: Honor) => (
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', height: '100%' }}>
+                                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                                                    <h4 style={{ margin: 0, fontSize: '1rem', color: '#2D3748' }}>{honor.honorTitle}</h4>
+                                                                    {honor.isStarred && <span className="material-symbols-outlined" style={{ color: '#F59E0B', fontSize: '18px' }}>star</span>}
+                                                                </div>
+                                                                <span style={{ fontSize: '0.75rem', background: '#FEFCBF', color: '#744210', padding: '2px 6px', borderRadius: '4px', width: 'fit-content' }}>
+                                                                    {getHonorTypeBadge(honor.honorType)}
+                                                                </span>
+                                                                <div style={{ fontSize: '0.75rem', color: '#718096', marginTop: 'auto' }}>
+                                                                    {new Date(honor.date).toLocaleDateString()}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        renderDetail={(honor: Honor) => (
+                                                            <div>
+                                                                <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem', color: '#2D3748' }}>{honor.honorTitle}</h3>
+                                                                <p style={{ fontSize: '1rem', color: '#2D3748', lineHeight: '1.6' }}>
+                                                                    {honor.description || "No description provided."}
+                                                                </p>
+                                                            </div>
+                                                        )}
+                                                    />
+                                                )}
 
-                                        {/* HONORS */}
-                                        <DataCategorySection
-                                            title="Honors & Awards"
-                                            icon="emoji_events"
-                                            iconColor="#000000ff"
-                                            items={detailedData.honors}
-                                            searchKeys={['honorTitle', 'description']}
-                                            groupBy={(item) => getHonorTypeBadge(item.honorType)}
-                                            getItemStyle={(item) => ({ borderLeft: '4px solid #F6E05E' })}
-                                            renderCard={(honor: Honor) => (
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', height: '100%' }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                                        <h4 style={{ margin: 0, fontSize: '1rem', color: '#2D3748' }}>{honor.honorTitle}</h4>
-                                                        {honor.isStarred && <span className="material-symbols-outlined" style={{ color: '#F59E0B', fontSize: '18px' }}>star</span>}
-                                                    </div>
-                                                    <span style={{ fontSize: '0.75rem', background: '#FEFCBF', color: '#744210', padding: '2px 6px', borderRadius: '4px', width: 'fit-content' }}>
-                                                        {getHonorTypeBadge(honor.honorType)}
-                                                    </span>
-                                                    <div style={{ fontSize: '0.75rem', color: '#718096', marginTop: 'auto' }}>
-                                                        {new Date(honor.date).toLocaleDateString()}
-                                                    </div>
-                                                </div>
-                                            )}
-                                            renderDetail={(honor: Honor) => (
-                                                <div>
-                                                    <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem', color: '#2D3748' }}>{honor.honorTitle}</h3>
-                                                    <p style={{ fontSize: '1rem', color: '#2D3748', lineHeight: '1.6' }}>
-                                                        {honor.description || "No description provided."}
-                                                    </p>
-                                                </div>
-                                            )}
-                                        />
+                                                {activeStudentTab === 'tests' && (
+                                                    <DataCategorySection
+                                                        title="Test Scores"
+                                                        icon="book"
+                                                        iconColor="#000000ff"
+                                                        items={detailedData.tests}
+                                                        searchKeys={['type', 'apTest', 'score']}
+                                                        groupBy={(item) => getTestTypeLabel(item.type)}
+                                                        getItemStyle={(test) => {
+                                                            const color = getTestTypeColor(test.type);
+                                                            return {
+                                                                background: color.bgGradient,
+                                                                border: `2px solid ${color.border}`
+                                                            };
+                                                        }}
+                                                        defaultExpanded={true}
+                                                        hideCollapseToggle={true}
+                                                        renderCard={(test: Test) => (
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '100%' }}>
+                                                                <div>
+                                                                    <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1rem', color: '#2D3748' }}>{test.apTest || getTestTypeLabel(test.type)}</h4>
+                                                                    <div style={{ fontSize: '0.75rem', color: '#718096' }}>{test.date}</div>
+                                                                </div>
+                                                                <span style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#437E84' }}>{test.score}</span>
+                                                            </div>
+                                                        )}
+                                                        renderDetail={(test: Test) => (
+                                                            <div>
+                                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.5rem' }}>
+                                                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                                        <span style={{ color: '#718096' }}>Type</span>
+                                                                        <span style={{ fontWeight: '600' }}>{getTestTypeLabel(test.type)}</span>
+                                                                    </div>
+                                                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                                        <span style={{ color: '#718096' }}>Date Taken</span>
+                                                                        <span style={{ fontWeight: '600' }}>{test.date}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    />
+                                                )}
 
-                                        {/* TESTS */}
-                                        <DataCategorySection
-                                            title="Test Scores"
-                                            icon="book"
-                                            iconColor="#000000ff"
-                                            items={detailedData.tests}
-                                            searchKeys={['type', 'apTest', 'score']}
-                                            groupBy={(item) => getTestTypeLabel(item.type)}
-                                            getItemStyle={(test) => {
-                                                const color = getTestTypeColor(test.type);
-                                                return {
-                                                    background: color.bgGradient,
-                                                    border: `2px solid ${color.border}`
-                                                };
-                                            }}
-                                            renderCard={(test: Test) => (
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '100%' }}>
-                                                    <div>
-                                                        <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1rem', color: '#2D3748' }}>{test.apTest || getTestTypeLabel(test.type)}</h4>
-                                                        <div style={{ fontSize: '0.75rem', color: '#718096' }}>{test.date}</div>
-                                                    </div>
-                                                    <span style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#437E84' }}>{test.score}</span>
-                                                </div>
-                                            )}
-                                            renderDetail={(test: Test) => (
-                                                <div>
-                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.5rem' }}>
-                                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                            <span style={{ color: '#718096' }}>Type</span>
-                                                            <span style={{ fontWeight: '600' }}>{getTestTypeLabel(test.type)}</span>
-                                                        </div>
-                                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                            <span style={{ color: '#718096' }}>Date Taken</span>
-                                                            <span style={{ fontWeight: '600' }}>{test.date}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        />
+                                                {activeStudentTab === 'colleges' && (
+                                                    <DataCategorySection
+                                                        title="Colleges"
+                                                        icon="account_balance"
+                                                        iconColor="#000000ff"
+                                                        items={detailedData.colleges}
+                                                        searchKeys={['collegeName', 'notes']}
+                                                        groupBy={(item) => getApplicationStatusBadge(item.applicationStatus).text || 'Not Applied'}
+                                                        getItemStyle={(item) => ({ borderLeft: '4px solid #4299E1' })}
+                                                        defaultExpanded={true}
+                                                        hideCollapseToggle={true}
+                                                        renderCard={(college: College) => {
+                                                            const statusBadge = getApplicationStatusBadge(college.applicationStatus);
+                                                            return (
+                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', height: '100%' }}>
+                                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                                                        <h4 style={{ margin: 0, fontSize: '1rem', color: '#2D3748' }}>{college.collegeName}</h4>
+                                                                        <span style={{ fontSize: '0.875rem', fontWeight: 'bold', color: '#437E84' }}>
+                                                                            {getScoreDisplay(college.collegeScore)}
+                                                                        </span>
+                                                                    </div>
+                                                                    {statusBadge.text && (
+                                                                        <span style={{
+                                                                            fontSize: '0.75rem', background: statusBadge.bg, color: statusBadge.color,
+                                                                            padding: '2px 8px', borderRadius: '4px', width: 'fit-content'
+                                                                        }}>
+                                                                            {statusBadge.text}
+                                                                        </span>
+                                                                    )}
+                                                                    {college.toured && (
+                                                                        <span style={{ fontSize: '0.75rem', background: '#E6F4EA', color: '#137333', padding: '2px 8px', borderRadius: '4px', width: 'fit-content' }}>
+                                                                            ✓ Toured
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        }}
+                                                        renderDetail={(college: College) => (
+                                                            <div>
+                                                                <div style={{ fontSize: '0.875rem', color: '#718096', marginBottom: '0.5rem' }}>Personal Notes</div>
+                                                                <div style={{ fontSize: '0.95rem', color: '#2D3748', lineHeight: '1.6', fontStyle: college.notes ? 'normal' : 'italic' }}>
+                                                                    {college.notes || "No notes added for this college."}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    />
+                                                )}
 
-                                        {/* COLLEGES */}
-                                        <DataCategorySection
-                                            title="Colleges"
-                                            icon="account_balance"
-                                            iconColor="#000000ff"
-                                            items={detailedData.colleges}
-                                            searchKeys={['collegeName', 'notes']}
-                                            groupBy={(item) => getApplicationStatusBadge(item.applicationStatus).text || 'Not Applied'}
-                                            getItemStyle={(item) => ({ borderLeft: '4px solid #4299E1' })}
-                                            renderCard={(college: College) => {
-                                                const statusBadge = getApplicationStatusBadge(college.applicationStatus);
-                                                return (
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', height: '100%' }}>
-                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                                            <h4 style={{ margin: 0, fontSize: '1rem', color: '#2D3748' }}>{college.collegeName}</h4>
-                                                            <span style={{ fontSize: '0.875rem', fontWeight: 'bold', color: '#437E84' }}>
-                                                                {getScoreDisplay(college.collegeScore)}
-                                                            </span>
-                                                        </div>
-                                                        {statusBadge.text && (
-                                                            <span style={{
-                                                                fontSize: '0.75rem', background: statusBadge.bg, color: statusBadge.color,
-                                                                padding: '2px 8px', borderRadius: '4px', width: 'fit-content'
+                                                {activeStudentTab === 'essays' && (
+                                                    <DataCategorySection
+                                                        title="Essays"
+                                                        icon="edit_document"
+                                                        iconColor="#000000ff"
+                                                        items={[...detailedData.essays.filter(e => e.status !== 'Idea')].sort((a, b) => {
+                                                            if (a.isEmphasized && !b.isEmphasized) return -1;
+                                                            if (!a.isEmphasized && b.isEmphasized) return 1;
+                                                            return 0;
+                                                        })}
+                                                        searchKeys={['title', 'idea', 'promptText']}
+                                                        groupBy={(item) => item.isEmphasized ? '⭐ Highlighted' : (item.status || 'Draft')}
+                                                        getItemStyle={(item) => ({
+                                                            borderLeft: item.isEmphasized ? '4px solid #F59E0B' : '4px solid #ED8936',
+                                                            background: item.isEmphasized ? 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)' : undefined,
+                                                            boxShadow: item.isEmphasized ? '0 4px 12px rgba(245, 158, 11, 0.15)' : undefined
+                                                        })}
+                                                        defaultExpanded={true}
+                                                        hideCollapseToggle={true}
+                                                        onItemClick={(essay: Essay) => router.push(`/essays/view/${essay.id}?studentId=${selectedStudentId}`)}
+                                                        renderCard={(essay: Essay) => (
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', height: '100%' }}>
+                                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                                        <h4 style={{ margin: 0, fontSize: '1rem', color: '#2D3748' }}>{essay.title || 'Untitled Essay'}</h4>
+                                                                        {essay.isEmphasized && (
+                                                                            <span style={{
+                                                                                fontSize: '11px',
+                                                                                background: '#F59E0B',
+                                                                                color: 'white',
+                                                                                padding: '2px 6px',
+                                                                                borderRadius: '4px',
+                                                                                fontWeight: '600',
+                                                                                display: 'flex',
+                                                                                alignItems: 'center',
+                                                                                gap: '3px'
+                                                                            }}>
+                                                                                ⭐ Highlighted
+                                                                            </span>
+                                                                        )}
+                                                                        {essay.unresolvedComments && essay.unresolvedComments > 0 && (
+                                                                            <span style={{
+                                                                                fontSize: '11px',
+                                                                                background: '#DC2626',
+                                                                                color: 'white',
+                                                                                padding: '2px 6px',
+                                                                                borderRadius: '4px',
+                                                                                fontWeight: '600',
+                                                                                display: 'flex',
+                                                                                alignItems: 'center',
+                                                                                gap: '3px'
+                                                                            }}>
+                                                                                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>comment</span>
+                                                                                {essay.unresolvedComments}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                                <span style={{ fontSize: '0.75rem', background: '#FEEBC8', color: '#744210', padding: '2px 6px', borderRadius: '4px', width: 'fit-content' }}>
+                                                                    {essay.status || 'Draft'}
+                                                                </span>
+                                                                <div style={{ fontSize: '0.75rem', color: '#718096', marginTop: 'auto', fontStyle: 'italic' }}>
+                                                                    {essay.promptText ? essay.promptText.substring(0, 60) + (essay.promptText.length > 60 ? '...' : '') : 'No prompt selected'}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        renderDetail={(essay: Essay) => (
+                                                            <div style={{
+                                                                background: '#fff',
+                                                                border: essay.isEmphasized ? '2px solid #F59E0B' : '1px solid #E2E8F0',
+                                                                borderRadius: '8px',
+                                                                padding: '2rem',
+                                                                boxShadow: essay.isEmphasized ? '0 8px 20px rgba(245, 158, 11, 0.2)' : '0 4px 6px rgba(0, 0, 0, 0.05)',
+                                                                fontFamily: "'Georgia', serif",
+                                                                color: '#2D3748'
                                                             }}>
-                                                                {statusBadge.text}
-                                                            </span>
-                                                        )}
-                                                        {college.toured && (
-                                                            <span style={{ fontSize: '0.75rem', background: '#E6F4EA', color: '#137333', padding: '2px 8px', borderRadius: '4px', width: 'fit-content' }}>
-                                                                ✓ Toured
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                );
-                                            }}
-                                            renderDetail={(college: College) => (
-                                                <div>
-                                                    <div style={{ fontSize: '0.875rem', color: '#718096', marginBottom: '0.5rem' }}>Personal Notes</div>
-                                                    <div style={{ fontSize: '0.95rem', color: '#2D3748', lineHeight: '1.6', fontStyle: college.notes ? 'normal' : 'italic' }}>
-                                                        {college.notes || "No notes added for this college."}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        />
-
-                                        {/* ESSAYS */}
-                                        <DataCategorySection
-                                            title="Essays"
-                                            icon="edit_document"
-                                            iconColor="#000000ff"
-                                            items={[...detailedData.essays.filter(e => e.status !== 'Idea')].sort((a, b) => {
-                                                // Sort emphasized essays first
-                                                if (a.isEmphasized && !b.isEmphasized) return -1;
-                                                if (!a.isEmphasized && b.isEmphasized) return 1;
-                                                return 0;
-                                            })}
-                                            searchKeys={['title', 'idea', 'promptText']}
-                                            groupBy={(item) => item.isEmphasized ? '⭐ Highlighted' : (item.status || 'Draft')}
-                                            getItemStyle={(item) => ({
-                                                borderLeft: item.isEmphasized ? '4px solid #F59E0B' : '4px solid #ED8936',
-                                                background: item.isEmphasized ? 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)' : undefined,
-                                                boxShadow: item.isEmphasized ? '0 4px 12px rgba(245, 158, 11, 0.15)' : undefined
-                                            })}
-                                            onItemClick={(essay: Essay) => router.push(`/essays/view/${essay.id}?studentId=${selectedStudentId}`)}
-                                            renderCard={(essay: Essay) => (
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', height: '100%' }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                                            <h4 style={{ margin: 0, fontSize: '1rem', color: '#2D3748' }}>{essay.title || 'Untitled Essay'}</h4>
-                                                            {essay.isEmphasized && (
-                                                                <span style={{
-                                                                    fontSize: '11px',
-                                                                    background: '#F59E0B',
-                                                                    color: 'white',
-                                                                    padding: '2px 6px',
-                                                                    borderRadius: '4px',
-                                                                    fontWeight: '600',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '3px'
+                                                                {essay.isEmphasized && (
+                                                                    <div style={{
+                                                                        background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                                                                        color: 'white',
+                                                                        padding: '8px 16px',
+                                                                        borderRadius: '6px',
+                                                                        marginBottom: '1.5rem',
+                                                                        textAlign: 'center',
+                                                                        fontFamily: 'sans-serif',
+                                                                        fontSize: '0.875rem',
+                                                                        fontWeight: '600'
+                                                                    }}>
+                                                                        ⭐ This essay was highlighted by the student for your attention
+                                                                    </div>
+                                                                )}
+                                                                <h2 style={{
+                                                                    textAlign: 'center',
+                                                                    fontSize: '1.5rem',
+                                                                    fontWeight: 'bold',
+                                                                    marginBottom: '1.5rem',
+                                                                    fontFamily: 'sans-serif'
                                                                 }}>
-                                                                    ⭐ Highlighted
-                                                                </span>
-                                                            )}
-                                                            {essay.unresolvedComments && essay.unresolvedComments > 0 && (
-                                                                <span style={{
-                                                                    fontSize: '11px',
-                                                                    background: '#DC2626',
-                                                                    color: 'white',
-                                                                    padding: '2px 6px',
-                                                                    borderRadius: '4px',
-                                                                    fontWeight: '600',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '3px'
+                                                                    {essay.title}
+                                                                </h2>
+                                                                {essay.promptText && (
+                                                                    <div style={{
+                                                                        marginBottom: '2rem',
+                                                                        padding: '1rem',
+                                                                        background: '#F7FAFC',
+                                                                        borderLeft: '4px solid #CBD5E0',
+                                                                        fontFamily: 'sans-serif',
+                                                                        fontSize: '0.9rem',
+                                                                        color: '#4A5568',
+                                                                        fontStyle: 'italic'
+                                                                    }}>
+                                                                        <strong>Prompt:</strong> {essay.promptText}
+                                                                    </div>
+                                                                )}
+                                                                <div style={{
+                                                                    fontSize: '1.1rem',
+                                                                    lineHeight: '1.8',
+                                                                    whiteSpace: 'pre-wrap'
                                                                 }}>
-                                                                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>comment</span>
-                                                                    {essay.unresolvedComments}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                    <span style={{ fontSize: '0.75rem', background: '#FEEBC8', color: '#744210', padding: '2px 6px', borderRadius: '4px', width: 'fit-content' }}>
-                                                        {essay.status || 'Draft'}
-                                                    </span>
-                                                    <div style={{ fontSize: '0.75rem', color: '#718096', marginTop: 'auto', fontStyle: 'italic' }}>
-                                                        {essay.promptText ? essay.promptText.substring(0, 60) + (essay.promptText.length > 60 ? '...' : '') : 'No prompt selected'}
-                                                    </div>
-                                                </div>
-                                            )}
-                                            renderDetail={(essay: Essay) => (
-                                                <div style={{
-                                                    background: '#fff',
-                                                    border: essay.isEmphasized ? '2px solid #F59E0B' : '1px solid #E2E8F0',
-                                                    borderRadius: '8px',
-                                                    padding: '2rem',
-                                                    boxShadow: essay.isEmphasized ? '0 8px 20px rgba(245, 158, 11, 0.2)' : '0 4px 6px rgba(0, 0, 0, 0.05)',
-                                                    fontFamily: "'Georgia', serif",
-                                                    color: '#2D3748'
-                                                }}>
-                                                    {essay.isEmphasized && (
-                                                        <div style={{
-                                                            background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                                                            color: 'white',
-                                                            padding: '8px 16px',
-                                                            borderRadius: '6px',
-                                                            marginBottom: '1.5rem',
-                                                            textAlign: 'center',
-                                                            fontFamily: 'sans-serif',
-                                                            fontSize: '0.875rem',
-                                                            fontWeight: '600'
-                                                        }}>
-                                                            ⭐ This essay was highlighted by the student for your attention
-                                                        </div>
-                                                    )}
-                                                    <h2 style={{
-                                                        textAlign: 'center',
-                                                        fontSize: '1.5rem',
-                                                        fontWeight: 'bold',
-                                                        marginBottom: '1.5rem',
-                                                        fontFamily: 'sans-serif'
-                                                    }}>
-                                                        {essay.title}
-                                                    </h2>
-
-                                                    {essay.promptText && (
-                                                        <div style={{
-                                                            marginBottom: '2rem',
-                                                            padding: '1rem',
-                                                            background: '#F7FAFC',
-                                                            borderLeft: '4px solid #CBD5E0',
-                                                            fontFamily: 'sans-serif',
-                                                            fontSize: '0.9rem',
-                                                            color: '#4A5568',
-                                                            fontStyle: 'italic'
-                                                        }}>
-                                                            <strong>Prompt:</strong> {essay.promptText}
-                                                        </div>
-                                                    )}
-
-                                                    <div style={{
-                                                        fontSize: '1.1rem',
-                                                        lineHeight: '1.8',
-                                                        whiteSpace: 'pre-wrap'
-                                                    }}>
-                                                        <ReactMarkdown>{essay.idea}</ReactMarkdown>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        />
-
-                                    </div>
+                                                                    <ReactMarkdown>{essay.idea}</ReactMarkdown>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    />
+                                                )}
+                                            </motion.div>
+                                        </AnimatePresence>
+                                    </>
                                 )}
 
                                 {/* Recalculate Button */}

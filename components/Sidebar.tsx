@@ -47,7 +47,7 @@ export default function Sidebar({
                             </h3>
                             {/* Overview Button */}
                             <button
-                                onClick={() => setSelectedStudentId?.(null)}
+                                onClick={() => onNavigate('/dashboard')}
                                 style={{
                                     display: 'flex',
                                     alignItems: 'center',
@@ -84,7 +84,7 @@ export default function Sidebar({
                                 .map((student: any) => (
                                     <button
                                         key={student.uid}
-                                        onClick={() => setSelectedStudentId?.(student.uid)}
+                                        onClick={() => onNavigate(`/dashboard?studentId=${student.uid}`)}
                                         style={{
                                             display: 'flex',
                                             alignItems: 'center',
@@ -121,20 +121,18 @@ export default function Sidebar({
                                 ))}
 
                             <button
-                                onClick={() => {
-                                    setSelectedStudentId?.(null);
-                                }}
+                                onClick={() => onNavigate('/add-student')}
                                 style={{
                                     display: 'flex',
                                     alignItems: 'center',
                                     width: '100%',
                                     padding: '0.75rem',
                                     border: '1px dashed #CBD5E0',
-                                    background: 'transparent',
+                                    background: currentPath === '/add-student' ? '#E9F5F7' : 'transparent',
                                     borderRadius: '8px',
                                     cursor: 'pointer',
                                     marginTop: '1rem',
-                                    color: '#718096'
+                                    color: currentPath === '/add-student' ? '#437E84' : '#718096'
                                 }}
                             >
                                 <span className="material-symbols-outlined" style={{ fontSize: '20px', marginRight: '0.5rem' }}>add</span>
